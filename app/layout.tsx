@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import './globals.css';
+import './map.css';
 
 const siteOrigin = process.env.SITE_ORIGIN ?? 'http://localhost:3000';
 const socialImage = new URL('/og.png', siteOrigin).toString();
