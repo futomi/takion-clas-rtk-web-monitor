@@ -585,36 +585,32 @@ export default function Home() {
           <div className="brand-mark" aria-hidden="true"><span /></div>
           <div><p className="eyebrow">QZSS / CLAS RECEIVER</p><h1>CLAS Monitor</h1></div>
         </div>
-        <div className={`connection-chip ${connection}`}><span className="status-dot" />{connection === 'connected' ? '受信機に接続中' : connection === 'connecting' ? '接続しています' : '未接続'}</div>
+        <div className="header-status">
+          <span className="local-data">LOCAL PROCESSING</span>
+          <div className={`connection-chip ${connection}`}><span className="status-dot" />{connection === 'connected' ? '接続中' : connection === 'connecting' ? '接続中…' : '未接続'}</div>
+        </div>
       </header>
 
-      <section className="intro-grid">
-        <div className="intro-copy">
-          <p className="section-kicker">CENTIMETER LEVEL AUGMENTATION SERVICE</p>
-          <h2>みちびきの現在地を、<br /><em>そのまま</em>読む。</h2>
-          <p className="lead">TakionCM001から届く測位データをChromeで受信し、位置・精度・衛星情報とUBX・NMEA・RTCMログをリアルタイムに表示します。</p>
-          <div className="privacy-note"><span aria-hidden="true">●</span> データはこのブラウザー内だけで処理されます</div>
-        </div>
-
-        <aside className="connect-card" aria-label="受信機への接続">
-          <div className="connect-card-head">
-            <div><p className="card-label">USB SERIAL</p><h3>受信機を接続</h3></div>
-            <span className={`api-badge ${isSupported ? 'supported' : 'unsupported'}`}>{isSupported ? 'Chrome対応' : '非対応'}</span>
+      <section className="device-toolbar panel" aria-label="受信機への接続">
+        <div className="device-heading">
+          <p className="card-label">USB SERIAL RECEIVER</p>
+          <div className="device-name">
+            <h2>TakionCM001</h2>
+            <span className={`api-badge ${isSupported ? 'supported' : 'unsupported'}`}>{isSupported ? 'Web Serial' : '非対応'}</span>
           </div>
-          <p className="connect-help">「接続する」を押し、一覧から <strong>USB シリアル デバイス</strong> を選択してください。測位データ出力は接続中だけ一時的に有効になります。</p>
-          <label className="baud-control">
-            <span>通信速度</span>
-            <select value={baudRate} disabled={connection !== 'idle'} onChange={(event) => setBaudRate(Number(event.target.value))}>
-              {[9600, 19200, 38400, 57600, 115200, 230400, 460800].map((rate) => <option value={rate} key={rate}>{rate.toLocaleString()} bps</option>)}
-            </select>
-          </label>
-          {connection === 'connected' ? (
-            <button className="connect-button disconnect-button" onClick={() => void disconnect()}>切断する</button>
-          ) : (
-            <button className="connect-button" onClick={() => void connect()} disabled={!isSupported || connection !== 'idle'}><span aria-hidden="true">↗</span>{connection === 'connecting' ? '接続中…' : '受信機に接続する'}</button>
-          )}
-          <div className="device-id"><span>接続対象</span><code>u-blox {formatHex(portInfo.usbVendorId || UBLOX_VENDOR_ID)} / {formatHex(portInfo.usbProductId)}</code></div>
-        </aside>
+        </div>
+        <div className="device-id"><span>VID / PID</span><code>{formatHex(portInfo.usbVendorId || UBLOX_VENDOR_ID)} / {formatHex(portInfo.usbProductId)}</code></div>
+        <label className="baud-control">
+          <span>Baud</span>
+          <select value={baudRate} disabled={connection !== 'idle'} onChange={(event) => setBaudRate(Number(event.target.value))}>
+            {[9600, 19200, 38400, 57600, 115200, 230400, 460800].map((rate) => <option value={rate} key={rate}>{rate.toLocaleString()} bps</option>)}
+          </select>
+        </label>
+        {connection === 'connected' ? (
+          <button className="connect-button disconnect-button" onClick={() => void disconnect()}>切断</button>
+        ) : (
+          <button className="connect-button" onClick={() => void connect()} disabled={!isSupported || connection !== 'idle'}>{connection === 'connecting' ? '接続中…' : '接続'}</button>
+        )}
       </section>
 
       {error && <div className="error-banner" role="alert"><strong>接続エラー</strong><span>{error}</span><button onClick={() => setError('')}>閉じる</button></div>}

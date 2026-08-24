@@ -7,10 +7,10 @@ const socialImage = new URL('/og.png', siteOrigin).toString();
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
   title: 'CLAS Monitor — みちびき測位モニター',
-  description: 'TakionCM001のUSBシリアル出力をChromeで読み取り、CLAS測位情報とNMEAログを表示します。',
+  description: 'TakionCM001のUSBシリアル出力をChromeで読み取り、CLAS測位情報とUBX・NMEA・RTCMログを表示するウェブアプリです。',
   openGraph: {
     title: 'CLAS Monitor — みちびき測位モニター',
-    description: 'TakionCM001のUSBシリアル出力をChromeで読み取り、CLAS測位情報をリアルタイムに表示します。',
+    description: 'TakionCM001のUSBシリアル出力をChromeで読み取る、コンパクトなCLAS測位モニターです。',
     type: 'website',
     locale: 'ja_JP',
     images: [{ url: socialImage, width: 1728, height: 912, alt: 'CLAS Monitor — みちびき測位モニター' }],
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'CLAS Monitor — みちびき測位モニター',
-    description: 'TakionCM001の測位情報をChromeでリアルタイム表示します。',
+    description: 'TakionCM001の測位情報と受信ログをChromeでリアルタイム表示します。',
     images: [socialImage],
   },
 };
