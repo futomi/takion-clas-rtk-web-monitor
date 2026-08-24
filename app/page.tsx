@@ -18,12 +18,14 @@ type Telemetry = {
   timeUtc?: string; dateUtc?: string; horizontalError?: number; verticalError?: number;
   lastReceivedAt?: number;
 };
-type ParsedLine = { type: string; valid: boolean | null; update: Partial<Telemetry> };
+type ParsedLine = { type: string; valid: boolean | null; update: Partial<Telemetry>; summary?: string };
 type LogLine = { id: number; receivedAt: number; text: string; type: string; valid: boolean | null };
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'disconnecting';
 
 const UBLOX_VENDOR_ID = 0x1546;
 const MAX_LOG_LINES = 240;
+const MAX_NMEA_BYTES = 256;
+const MAX_UBX_PAYLOAD_BYTES = 16384;
 const GET_NAV_PVT_USB_RATE = new Uint8Array([0xb5, 0x62, 0x06, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x91, 0x20, 0x53, 0xf7]);
 const ENABLE_NAV_PVT_USB_RAM = new Uint8Array([0xb5, 0x62, 0x06, 0x8a, 0x09, 0x00, 0x00, 0x01, 0x00, 0x00, 0x09, 0x00, 0x91, 0x20, 0x01, 0x55, 0x52]);
 const DISABLE_NAV_PVT_USB_RAM = new Uint8Array([0xb5, 0x62, 0x06, 0x8a, 0x09, 0x00, 0x00, 0x01, 0x00, 0x00, 0x09, 0x00, 0x91, 0x20, 0x00, 0x54, 0x51]);
@@ -73,6 +75,16 @@ function checksumIsValid(line: string) {
   return Number.isFinite(expected) ? checksum === expected : false;
 }
 
+function isNmeaSentence(bytes: Uint8Array, decoder: TextDecoder) {
+  if (bytes.length < 10 || bytes.length > MAX_NMEA_BYTES) return null;
+  for (const byte of bytes) {
+    if (byte < 0x20 || byte > 0x7e) return null;
+  }
+  const text = decoder.decode(bytes);
+  if (!/^\$[A-Z][A-Z0-9]{3,5},.*\*[0-9A-F]{2}$/i.test(text)) return null;
+  return text;
+}
+
 function parseNmea(line: string): ParsedLine {
   const valid = checksumIsValid(line);
   const payload = line.slice(1, line.indexOf('*') > -1 ? line.indexOf('*') : undefined);
@@ -85,13 +97,23 @@ function parseNmea(line: string): ParsedLine {
   switch (type) {
     case 'GGA':
       update.timeUtc = formatNmeaTime(fields[1]);
-      update.latitude = parseCoordinate(fields[2], fields[3]);
-      update.longitude = parseCoordinate(fields[4], fields[5]);
-      update.quality = parseNumber(fields[6]);
+      update.quality = parseNumber(fields[6]) ?? 0;
       update.satellitesUsed = parseNumber(fields[7]);
-      update.hdop = parseNumber(fields[8]);
-      update.altitude = parseNumber(fields[9]);
-      update.geoidSeparation = parseNumber(fields[11]);
+      if (update.quality > 0) {
+        update.latitude = parseCoordinate(fields[2], fields[3]);
+        update.longitude = parseCoordinate(fields[4], fields[5]);
+        update.hdop = parseNumber(fields[8]);
+        update.altitude = parseNumber(fields[9]);
+        update.geoidSeparation = parseNumber(fields[11]);
+      } else {
+        update.latitude = undefined;
+        update.longitude = undefined;
+        update.hdop = undefined;
+        update.altitude = undefined;
+        update.geoidSeparation = undefined;
+        update.horizontalError = undefined;
+        update.verticalError = undefined;
+      }
       break;
     case 'RMC': {
       if (fields[2] === 'A') {
@@ -145,14 +167,35 @@ function parseUbx(frame: Uint8Array): ParsedLine {
   const valid = frame[frame.length - 2] === checksumA && frame[frame.length - 1] === checksumB;
   const type = messageClass === 0x01 && messageId === 0x07
     ? 'PVT'
-    : messageClass === 0x06 && messageId === 0x8b
-      ? 'CFG'
-      : messageClass === 0x05
-        ? 'ACK'
-        : 'UBX';
+    : messageClass === 0x02 && messageId === 0x73
+      ? 'QZSSL6'
+      : messageClass === 0x06 && messageId === 0x8b
+        ? 'CFG-VALGET'
+        : messageClass === 0x05 && messageId === 0x01
+          ? 'ACK-ACK'
+          : messageClass === 0x05 && messageId === 0x00
+            ? 'ACK-NAK'
+            : `${messageClass.toString(16).toUpperCase().padStart(2, '0')}/${messageId.toString(16).toUpperCase().padStart(2, '0')}`;
   const update: Partial<Telemetry> = {};
 
-  if (!valid || type !== 'PVT' || payloadLength < 92) return { type, valid, update };
+  if (!valid) return { type, valid, update };
+
+  if (messageClass === 0x05 && payloadLength >= 2) {
+    const targetClass = frame[6].toString(16).toUpperCase().padStart(2, '0');
+    const targetId = frame[7].toString(16).toUpperCase().padStart(2, '0');
+    return { type, valid, update, summary: `UBX-${type} · command ${targetClass}/${targetId}` };
+  }
+
+  if (type === 'QZSSL6' && payloadLength >= 14) {
+    const data = new DataView(frame.buffer, frame.byteOffset + 6, payloadLength);
+    const svId = data.getUint8(1);
+    const cno = data.getUint16(2, true) / 256;
+    const channelInfo = data.getUint16(10, true);
+    const signal = (channelInfo & (1 << 10)) !== 0 ? 'L6E' : 'L6D';
+    return { type, valid, update, summary: `UBX-RXM-QZSSL6 · ${signal} / SV ${svId} / C/N0 ${cno.toFixed(1)} dBHz` };
+  }
+
+  if (type !== 'PVT' || payloadLength < 92) return { type, valid, update };
 
   const data = new DataView(frame.buffer, frame.byteOffset + 6, payloadLength);
   const fixType = data.getUint8(20);
@@ -163,16 +206,31 @@ function parseUbx(frame: Uint8Array): ParsedLine {
 
   update.quality = !hasFix ? 0 : carrierSolution === 2 ? 4 : carrierSolution === 1 ? 5 : hasDifferential ? 2 : 1;
   update.satellitesUsed = data.getUint8(23);
-  update.longitude = data.getInt32(24, true) * 1e-7;
-  update.latitude = data.getInt32(28, true) * 1e-7;
-  const ellipsoidHeight = data.getInt32(32, true) / 1000;
-  update.altitude = data.getInt32(36, true) / 1000;
-  update.geoidSeparation = ellipsoidHeight - update.altitude;
-  update.horizontalError = data.getUint32(40, true) / 1000;
-  update.verticalError = data.getUint32(44, true) / 1000;
-  update.speedKmh = data.getInt32(60, true) * 0.0036;
-  update.course = data.getInt32(64, true) * 1e-5;
-  update.pdop = data.getUint16(76, true) * 0.01;
+  if (hasFix) {
+    update.longitude = data.getInt32(24, true) * 1e-7;
+    update.latitude = data.getInt32(28, true) * 1e-7;
+    const ellipsoidHeight = data.getInt32(32, true) / 1000;
+    update.altitude = data.getInt32(36, true) / 1000;
+    update.geoidSeparation = ellipsoidHeight - update.altitude;
+    const horizontalError = data.getUint32(40, true);
+    const verticalError = data.getUint32(44, true);
+    update.horizontalError = horizontalError === 0xffffffff ? undefined : horizontalError / 1000;
+    update.verticalError = verticalError === 0xffffffff ? undefined : verticalError / 1000;
+    update.speedKmh = data.getInt32(60, true) * 0.0036;
+    update.course = data.getInt32(64, true) * 1e-5;
+    const pdop = data.getUint16(76, true);
+    update.pdop = pdop === 0xffff ? undefined : pdop * 0.01;
+  } else {
+    update.latitude = undefined;
+    update.longitude = undefined;
+    update.altitude = undefined;
+    update.geoidSeparation = undefined;
+    update.horizontalError = undefined;
+    update.verticalError = undefined;
+    update.speedKmh = undefined;
+    update.course = undefined;
+    update.pdop = undefined;
+  }
 
   const timeValid = data.getUint8(11);
   if ((timeValid & 0x03) === 0x03) {
@@ -187,6 +245,26 @@ function parseUbx(frame: Uint8Array): ParsedLine {
   }
 
   return { type, valid, update };
+}
+
+function crc24q(bytes: Uint8Array, end: number) {
+  let crc = 0;
+  for (let index = 0; index < end; index += 1) {
+    crc ^= bytes[index] << 16;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc <<= 1;
+      if ((crc & 0x1000000) !== 0) crc ^= 0x1864cfb;
+    }
+  }
+  return crc & 0xffffff;
+}
+
+function parseRtcm(frame: Uint8Array): ParsedLine {
+  const expected = (frame[frame.length - 3] << 16) | (frame[frame.length - 2] << 8) | frame[frame.length - 1];
+  const valid = crc24q(frame, frame.length - 3) === expected;
+  const messageType = frame.length >= 5 ? (frame[3] << 4) | (frame[4] >> 4) : 0;
+  const type = messageType > 0 ? `RTCM${messageType}` : 'RTCM3';
+  return { type, valid, update: {}, summary: `RTCM3 type ${messageType || 'unknown'} · ${frame.length - 6} byte payload` };
 }
 
 function formatValue(value: number | undefined, digits = 2, suffix = '') {
@@ -207,13 +285,16 @@ export default function Home() {
   const [portInfo, setPortInfo] = useState<SerialPortInfo>({});
   const [lineCount, setLineCount] = useState(0);
   const [byteCount, setByteCount] = useState(0);
-  const [clock, setClock] = useState(Date.now());
+  const [clock, setClock] = useState(0);
   const portRef = useRef<SerialPortLike | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
   const readTaskRef = useRef<Promise<void> | null>(null);
   const originalPvtRateRef = useRef<number | null>(null);
   const temporaryOutputEnabledRef = useRef(false);
+  const valgetReplyReceivedRef = useRef(false);
+  const valgetAckReceivedRef = useRef(false);
+  const pvtEnableRequestedRef = useRef(false);
   const keepReadingRef = useRef(false);
   const pausedRef = useRef(false);
   const logIdRef = useRef(0);
@@ -245,6 +326,24 @@ export default function Home() {
     if (!pausedRef.current) setLogs((current) => [...entries.reverse(), ...current].slice(0, MAX_LOG_LINES));
   }, []);
 
+  const enablePvtOutputIfReady = useCallback(() => {
+    if (
+      originalPvtRateRef.current !== 0
+      || !valgetReplyReceivedRef.current
+      || !valgetAckReceivedRef.current
+      || pvtEnableRequestedRef.current
+      || !writerRef.current
+    ) return;
+
+    pvtEnableRequestedRef.current = true;
+    temporaryOutputEnabledRef.current = true;
+    void writerRef.current.write(ENABLE_NAV_PVT_USB_RAM).catch((configError) => {
+      pvtEnableRequestedRef.current = false;
+      temporaryOutputEnabledRef.current = false;
+      setError(configError instanceof Error ? configError.message : '測位データ出力を開始できませんでした。');
+    });
+  }, []);
+
   const consumeUbxFrame = useCallback((frame: Uint8Array) => {
     const receivedAt = Date.now();
     const parsed = parseUbx(frame);
@@ -254,16 +353,24 @@ export default function Home() {
       const config = new DataView(frame.buffer, frame.byteOffset + 6, payloadLength);
       const key = config.getUint32(4, true);
       if (key === 0x20910009) {
-        const currentRate = config.getUint8(8);
-        originalPvtRateRef.current = currentRate;
-        if (currentRate === 0 && writerRef.current) {
-          temporaryOutputEnabledRef.current = true;
-          void writerRef.current.write(ENABLE_NAV_PVT_USB_RAM).catch((configError) => {
-            temporaryOutputEnabledRef.current = false;
-            setError(configError instanceof Error ? configError.message : '測位データ出力を開始できませんでした。');
-          });
-        }
+        originalPvtRateRef.current = config.getUint8(8);
+        valgetReplyReceivedRef.current = true;
+        enablePvtOutputIfReady();
       }
+    }
+
+    if (frame[2] === 0x05 && payloadLength >= 2 && frame[6] === 0x06 && frame[7] === 0x8b) {
+      if (frame[3] === 0x01) {
+        valgetAckReceivedRef.current = true;
+        enablePvtOutputIfReady();
+      } else {
+        setError('受信機が測位データ出力設定の照会を拒否しました。接続先のUSBポートを確認してください。');
+      }
+    }
+
+    if (frame[2] === 0x05 && frame[3] === 0x00 && payloadLength >= 2 && frame[6] === 0x06 && frame[7] === 0x8a) {
+      temporaryOutputEnabledRef.current = false;
+      setError('受信機が測位データ出力の開始設定を拒否しました。');
     }
 
     setTelemetry((current) => ({ ...current, ...parsed.update, lastReceivedAt: receivedAt }));
@@ -272,7 +379,24 @@ export default function Home() {
       const entry: LogLine = {
         id: logIdRef.current++,
         receivedAt,
-        text: `UBX-${parsed.type} · ${frame.length - 8} byte payload`,
+        text: parsed.summary ?? `UBX-${parsed.type} · ${frame.length - 8} byte payload`,
+        type: parsed.type,
+        valid: parsed.valid,
+      };
+      setLogs((current) => [entry, ...current].slice(0, MAX_LOG_LINES));
+    }
+  }, [enablePvtOutputIfReady]);
+
+  const consumeRtcmFrame = useCallback((frame: Uint8Array) => {
+    const receivedAt = Date.now();
+    const parsed = parseRtcm(frame);
+    setTelemetry((current) => ({ ...current, lastReceivedAt: receivedAt }));
+    setLineCount((current) => current + 1);
+    if (!pausedRef.current) {
+      const entry: LogLine = {
+        id: logIdRef.current++,
+        receivedAt,
+        text: parsed.summary ?? 'RTCM3 frame',
         type: parsed.type,
         valid: parsed.valid,
       };
@@ -299,30 +423,74 @@ export default function Home() {
 
         let cursor = 0;
         while (cursor < pending.length) {
-          if (pending[cursor] === 0xb5 && pending[cursor + 1] === 0x62) {
+          if (pending[cursor] === 0xb5) {
+            if (pending.length - cursor < 2) break;
+            if (pending[cursor + 1] !== 0x62) {
+              cursor += 1;
+              continue;
+            }
             if (pending.length - cursor < 6) break;
             const payloadLength = pending[cursor + 4] | (pending[cursor + 5] << 8);
+            if (payloadLength > MAX_UBX_PAYLOAD_BYTES) {
+              cursor += 1;
+              continue;
+            }
             const frameLength = payloadLength + 8;
             if (pending.length - cursor < frameLength) break;
-            consumeUbxFrame(pending.slice(cursor, cursor + frameLength));
+            const frame = pending.slice(cursor, cursor + frameLength);
+            if (parseUbx(frame).valid !== true) {
+              cursor += 1;
+              continue;
+            }
+            consumeUbxFrame(frame);
             cursor += frameLength;
             continue;
           }
 
           if (pending[cursor] === 0x24) {
             let lineEnd = cursor + 1;
-            while (lineEnd < pending.length && pending[lineEnd] !== 0x0a && pending[lineEnd] !== 0x0d) lineEnd += 1;
-            if (lineEnd >= pending.length) break;
-            consumeLines([decoder.decode(pending.slice(cursor, lineEnd))]);
+            const searchEnd = Math.min(pending.length, cursor + MAX_NMEA_BYTES + 1);
+            while (lineEnd < searchEnd && pending[lineEnd] !== 0x0a && pending[lineEnd] !== 0x0d) lineEnd += 1;
+            if (lineEnd >= searchEnd) {
+              if (pending.length - cursor <= MAX_NMEA_BYTES) break;
+              cursor += 1;
+              continue;
+            }
+            const sentence = isNmeaSentence(pending.slice(cursor, lineEnd), decoder);
+            if (!sentence) {
+              cursor += 1;
+              continue;
+            }
+            consumeLines([sentence]);
             while (lineEnd < pending.length && (pending[lineEnd] === 0x0a || pending[lineEnd] === 0x0d)) lineEnd += 1;
             cursor = lineEnd;
             continue;
           }
+
+          if (pending[cursor] === 0xd3) {
+            if (pending.length - cursor < 3) break;
+            if ((pending[cursor + 1] & 0xfc) !== 0) {
+              cursor += 1;
+              continue;
+            }
+            const payloadLength = ((pending[cursor + 1] & 0x03) << 8) | pending[cursor + 2];
+            const frameLength = payloadLength + 6;
+            if (pending.length - cursor < frameLength) break;
+            const frame = pending.slice(cursor, cursor + frameLength);
+            if (parseRtcm(frame).valid !== true) {
+              cursor += 1;
+              continue;
+            }
+            consumeRtcmFrame(frame);
+            cursor += frameLength;
+            continue;
+          }
+
           cursor += 1;
         }
 
         pending = pending.slice(cursor);
-        if (pending.length > 8192) pending = pending.slice(-16);
+        if (pending.length > MAX_UBX_PAYLOAD_BYTES + 8) pending = pending.slice(-16);
       }
     } catch (readError) {
       if (keepReadingRef.current) setError(readError instanceof Error ? readError.message : '受信中に接続が切れました。');
@@ -330,7 +498,7 @@ export default function Home() {
       reader.releaseLock();
       if (readerRef.current === reader) readerRef.current = null;
     }
-  }, [consumeLines, consumeUbxFrame]);
+  }, [consumeLines, consumeRtcmFrame, consumeUbxFrame]);
 
   const disconnect = useCallback(async (unexpected = false) => {
     if (!portRef.current) return;
@@ -350,6 +518,9 @@ export default function Home() {
       readTaskRef.current = null;
       originalPvtRateRef.current = null;
       temporaryOutputEnabledRef.current = false;
+      valgetReplyReceivedRef.current = false;
+      valgetAckReceivedRef.current = false;
+      pvtEnableRequestedRef.current = false;
       setConnection('idle');
     }
   }, []);
@@ -366,6 +537,15 @@ export default function Home() {
     }
     setError('');
     setConnection('connecting');
+    setTelemetry({});
+    setLogs([]);
+    setLineCount(0);
+    setByteCount(0);
+    originalPvtRateRef.current = null;
+    temporaryOutputEnabledRef.current = false;
+    valgetReplyReceivedRef.current = false;
+    valgetAckReceivedRef.current = false;
+    pvtEnableRequestedRef.current = false;
     try {
       const port = await serial.requestPort({ filters: [{ usbVendorId: UBLOX_VENDOR_ID }] });
       await port.open({ baudRate, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none', bufferSize: 65536 });
@@ -412,7 +592,7 @@ export default function Home() {
         <div className="intro-copy">
           <p className="section-kicker">CENTIMETER LEVEL AUGMENTATION SERVICE</p>
           <h2>みちびきの現在地を、<br /><em>そのまま</em>読む。</h2>
-          <p className="lead">TakionCM001から届く測位データをChromeで受信し、位置・精度・衛星情報とNMEAログをリアルタイムに表示します。</p>
+          <p className="lead">TakionCM001から届く測位データをChromeで受信し、位置・精度・衛星情報とUBX・NMEA・RTCMログをリアルタイムに表示します。</p>
           <div className="privacy-note"><span aria-hidden="true">●</span> データはこのブラウザー内だけで処理されます</div>
         </div>
 
@@ -464,15 +644,15 @@ export default function Home() {
         </article>
       </section>
 
-      <section className="log-panel panel" aria-label="NMEA受信ログ">
-        <div className="log-heading"><div><p className="card-label">LIVE DATA STREAM</p><h3>NMEA 受信ログ</h3></div><div className="log-actions"><button onClick={() => setPaused((value) => !value)}>{paused ? '表示を再開' : '表示を一時停止'}</button><button onClick={() => setLogs([])}>クリア</button></div></div>
+      <section className="log-panel panel" aria-label="受信ログ">
+        <div className="log-heading"><div><p className="card-label">LIVE DATA STREAM</p><h3>受信ログ</h3></div><div className="log-actions"><button onClick={() => setPaused((value) => !value)}>{paused ? '表示を再開' : '表示を一時停止'}</button><button onClick={() => setLogs([])}>クリア</button></div></div>
         <div className="log-summary"><div><span>受信フレーム</span><strong>{lineCount.toLocaleString()}</strong></div><div><span>受信サイズ</span><strong>{(byteCount / 1024).toFixed(1)} KB</strong></div><div className="sentence-chips">{latestTypes.length > 0 ? latestTypes.map(([type, count]) => <span key={type}>{type} <b>{count}</b></span>) : <span>データ待ち</span>}</div></div>
-        <div className="terminal" aria-live="polite" aria-label="受信したNMEAセンテンス">
-          {logs.length === 0 ? <div className="terminal-empty"><span className="terminal-cursor" /><p>受信機に接続すると、ここにNMEAデータが流れます。</p></div> : logs.map((line) => <div className="log-line" key={line.id}><time>{new Date(line.receivedAt).toLocaleTimeString('ja-JP', { hour12: false })}</time><span className="log-type">{line.type}</span><code>{line.text}</code><span className={`checksum ${line.valid === true ? 'ok' : line.valid === false ? 'bad' : ''}`}>{line.valid === true ? 'OK' : line.valid === false ? 'ERR' : '—'}</span></div>)}
+        <div className="terminal" aria-live="polite" aria-label="受信した測位データ">
+          {logs.length === 0 ? <div className="terminal-empty"><span className="terminal-cursor" /><p>受信機に接続すると、判別できた測位データが流れます。</p></div> : logs.map((line) => <div className="log-line" key={line.id}><time>{new Date(line.receivedAt).toLocaleTimeString('ja-JP', { hour12: false })}</time><span className="log-type">{line.type}</span><code>{line.text}</code><span className={`checksum ${line.valid === true ? 'ok' : line.valid === false ? 'bad' : ''}`}>{line.valid === true ? 'OK' : line.valid === false ? 'ERR' : '—'}</span></div>)}
         </div>
       </section>
 
-      <footer><p>TakionCM001 · ZED-F9P + NEO-D9C</p><p>Web Serial / Temporary RAM config</p></footer>
+      <footer><p>TakionCM001 · ZED-F9P + NEO-D9C</p><p>Web Serial / UBX + NMEA + RTCM3</p></footer>
     </main>
   );
 }
