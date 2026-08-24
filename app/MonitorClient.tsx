@@ -293,6 +293,7 @@ export default function MonitorClient({
   const [lineCount, setLineCount] = useState(0);
   const [byteCount, setByteCount] = useState(0);
   const [clock, setClock] = useState(0);
+  const [isSupported, setIsSupported] = useState(false);
   const portRef = useRef<SerialPortLike | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
   const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
@@ -306,10 +307,10 @@ export default function MonitorClient({
   const pausedRef = useRef(false);
   const logIdRef = useRef(0);
 
-  const serial = typeof navigator === 'undefined' ? undefined : (navigator as Navigator & { serial?: SerialApi }).serial;
-  const isSupported = Boolean(serial);
-
   useEffect(() => { pausedRef.current = paused; }, [paused]);
+  useEffect(() => {
+    setIsSupported(Boolean((navigator as Navigator & { serial?: SerialApi }).serial));
+  }, []);
   useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 1000);
     return () => window.clearInterval(timer);
@@ -538,6 +539,7 @@ export default function MonitorClient({
   }, []);
 
   const connect = async () => {
+    const serial = (navigator as Navigator & { serial?: SerialApi }).serial;
     if (!serial) {
       setError('Web Serial APIを利用できません。最新版のChromeで、localhostまたはHTTPSから開いてください。');
       return;
