@@ -27,7 +27,7 @@ Google Chrome などの **Web Serial API** 対応ブラウザから直接USBシ�
 
 ---
 
-## 開発 & 起動手順
+## ローカルでの起動手順
 
 ### 必要環境
 - Node.js 20+ (推奨: Node 22+)
@@ -44,22 +44,11 @@ cd takion-clas-rtk-web-monitor
 npm install
 ```
 
-### 3. 開発サーバーの起動
+### 3. アプリの起動
 ```bash
 npm run dev
 ```
 起動後、Web Serial API に対応したブラウザ（Google Chrome / Microsoft Edge 等）で [http://localhost:3000](http://localhost:3000) を開きます。
-
-### 4. 本番ビルド & 起動
-```bash
-npm run build
-npm run start
-```
-
-### 5. リント
-```bash
-npm run lint
-```
 
 ---
 
