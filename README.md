@@ -1,6 +1,6 @@
 # Takion CLAS / RTK Web Monitor
 
-高精度測位モジュール「TakionCM001」専用の、ブラウザ完結型高精度測位モニターアプリケーションです。
+高精度測位モジュール「[TakionCM001](https://www.geosense.co.jp/)」専用の、ブラウザ完結型高精度測位モニターアプリケーションです。
 
 Google Chrome などの **Web Serial API** 対応ブラウザから直接USBシリアルポートを開き、測位状況（CLAS / ネットワークRTK / 単独測位）や NMEA / UBX / RTCM 電文の解析ログをリアルタイムに表示します。
 
