@@ -78,6 +78,22 @@ describe('scanFrames', () => {
     assert.deepEqual(frames.map((f) => f.kind), ['nmea']);
   });
 
+  it('未定義の UBX クラスを名乗る同期は、長さ表記を信じずその場で読み飛ばす', () => {
+    // 0x33 は u-blox が採番していないクラス。信じて待つと後続の電文が足止めされる
+    const bogus = new Uint8Array([0xb5, 0x62, 0x33, 0x07, 0x00, 0x20]);
+    const { frames, consumed } = scanFrames(concat(bogus, nmeaBytes), decoder);
+    assert.deepEqual(frames.map((f) => f.kind), ['nmea']);
+    assert.equal(consumed, bogus.length + nmeaBytes.length);
+  });
+
+  it('定義済みクラスなら、フレームが揃うまで消費せず待つ', () => {
+    // 本物かもしれない以上は待つ。ここで読み飛ばすと長い正規フレームを壊してしまう
+    const pending = new Uint8Array([0xb5, 0x62, 0x01, 0x07, 0x00, 0x20]);
+    const { frames, consumed } = scanFrames(concat(pending, nmeaBytes), decoder);
+    assert.deepEqual(frames, []);
+    assert.equal(consumed, 0);
+  });
+
   it('チェックサムが壊れた NMEA も 1 行として取り出す（検証結果は解析側が持つ）', () => {
     const bad = encoder.encode('$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*99\r\n');
     const { frames } = scanFrames(bad, decoder);

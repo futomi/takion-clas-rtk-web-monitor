@@ -1,5 +1,5 @@
 import * as net from 'node:net';
-import { NtripRequestError } from './apiError';
+import { NtripRequestError } from './ntripError';
 
 /**
  * NTRIP Caster への TCP 接続を開き、決まった後始末を必ず通す。
@@ -30,10 +30,19 @@ export type CasterSocketOptions = {
   onFailure: (error: Error) => void;
 };
 
-/** 開いた接続を外から畳むためのハンドル */
+/** 開いた接続を外から操作するためのハンドル */
 export type CasterSocketHandle = {
   /** 接続を閉じる。以降 `onEnd` も `onFailure` も呼ばれない */
   close: () => void;
+  /**
+   * 受信を一時停止する。消費側が追いつかない間、送信元へ TCP の受信窓で待ってもらう。
+   *
+   * 停止中も無通信タイムアウトは動き続ける。読み出しの止まった接続を
+   * いつまでも抱えないための歯止めなので、これは意図した挙動。
+   */
+  pause: () => void;
+  /** `pause` で止めた受信を再開する */
+  resume: () => void;
 };
 
 export function openCasterSocket({
@@ -75,5 +84,10 @@ export function openCasterSocket({
   // タイムアウトはこちらが意図して打ち切るものなので、利用者に見せてよいエラーとして通知する
   socket.on('timeout', () => settle(() => onFailure(new NtripRequestError(timeoutMessage))));
 
-  return { close: () => settle() };
+  return {
+    close: () => settle(),
+    // 片付け済みの接続を再開させない。畳んだ後の pull で受信が生き返るのを防ぐ
+    pause: () => { if (!settled) socket.pause(); },
+    resume: () => { if (!settled) socket.resume(); },
+  };
 }

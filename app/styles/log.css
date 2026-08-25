@@ -127,6 +127,12 @@
   scrollbar-color: #3d574c #0f1c18;
 }
 
+/* キーボードでスクロールできるようフォーカスを受けるので、当たっている位置を示す */
+.terminal:focus-visible {
+  outline: 2px solid var(--green-bright);
+  outline-offset: 2px;
+}
+
 .scroll-to-latest-btn {
   position: absolute;
   bottom: 12px;
@@ -177,6 +183,12 @@
 }
 .log-line:hover {
   background-color: rgba(255, 255, 255, .045);
+}
+/* キーボード操作時だけ、どの行に居るかを示す */
+.log-line:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: -2px;
+  background-color: rgba(255, 255, 255, .06);
 }
 
 /* 生ログのみ表示モード (RAW) */

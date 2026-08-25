@@ -179,12 +179,28 @@ function LogPanel({
         </div>
       </div>
 
+      {/*
+        流れ続けるログ本体には aria-live を付けない。毎秒数十行が追加される領域を
+        読み上げ続けると、支援技術の利用者は他の操作ができなくなる。
+        代わりに、利用者の操作でしか変わらない収集状態だけをここで知らせる。
+      */}
+      <p className="visually-hidden" aria-live="polite">
+        {paused ? '受信ログの収集を一時停止しました。' : '受信ログを収集しています。'}
+      </p>
+
       <div className="terminal-wrapper">
+        {/*
+          スクロールできる領域なので、キーボードだけでも中身をたどれるようフォーカスを受ける。
+          `role` を付けるのは、素の div に付けた aria-label が支援技術に無視されるため。
+          `log` ではなく `group` を選ぶのは、`log` が暗黙の aria-live を伴い、
+          上で避けたはずの読み上げが復活してしまうため。
+        */}
         <div
           ref={terminalRef}
           className="terminal"
           onScroll={handleScroll}
-          aria-live="polite"
+          role="group"
+          tabIndex={0}
           aria-label="受信した測位データ"
         >
           {displayedLogs.length === 0 ? (

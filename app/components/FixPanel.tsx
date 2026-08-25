@@ -61,7 +61,7 @@ export default function FixPanel({ telemetry, activeSource, quality, connection,
   const rating = telemetry.pdop === undefined ? null : dopRating(telemetry.pdop);
 
   return (
-    <article className="fix-panel panel">
+    <article className="panel">
       <div className="panel-heading">
         <div className="panel-title-with-badge">
           <h3>測位ステータス</h3>

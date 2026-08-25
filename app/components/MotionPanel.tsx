@@ -1,7 +1,12 @@
 import { formatValue } from '../lib/format';
 import type { Telemetry } from '../lib/telemetry';
 
-/** 進行方向インジケータの位置（0〜100%）。360 度を全幅に対応させる */
+/**
+ * 進行方向インジケータの位置（0〜100%）。360 度を全幅に対応させる。
+ *
+ * この値は目盛り全体の幅に対する割合なので、`left` へ渡す。`transform: translateX()`
+ * の % はインジケータ自身の幅が基準になるため、全域が数 px に潰れてしまう。
+ */
 const coursePercent = (course: number | undefined) =>
   Math.min(100, Math.max(0, (course ?? 0) / 3.6));
 
@@ -22,7 +27,7 @@ export default function MotionPanel({ telemetry }: { telemetry: Telemetry }) {
           <strong>{formatValue(telemetry.course, 1, '°')}</strong>
         </div>
         <div className="course-rule">
-          <span style={{ transform: `translateX(${coursePercent(telemetry.course)}%)` }} />
+          <span style={{ left: `${coursePercent(telemetry.course)}%` }} />
         </div>
         <div className="date-line">
           <span>測位日</span>

@@ -465,19 +465,24 @@
   font: 700 13px ui-monospace, Consolas, monospace;
 }
 .course-rule {
+  position: relative;
   height: 2px;
   margin: 2px 0 3px;
   overflow: hidden;
   background: #e5eae7;
   border-radius: 1px;
 }
+/* 位置は目盛り全体に対する割合なので left で置く（transform の % は自身の幅が基準） */
 .course-rule span {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
   width: 6px;
   height: 2px;
   margin-left: -3px;
   background: var(--green);
-  transition: transform .3s;
+  transition: left .3s;
 }
 .date-line {
   margin-top: 2px;

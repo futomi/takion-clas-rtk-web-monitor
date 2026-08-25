@@ -42,12 +42,20 @@ export function useNtripClient({ writeToPort, isWriterReady }: UseNtripClientOpt
   const lastSampledBytesRef = useRef(0);
   const lastDataAtRef = useRef<number | null>(null);
 
-  /** 接続を打ち切り、転送量の表示もリセットする */
+  /**
+   * 接続を打ち切り、転送量の表示もリセットする。
+   *
+   * エラー表示も消すのは、受信機の切断がきっかけでここへ来る場合があるため。
+   * 受信機が閉じる瞬間に届いた RTCM は書き込みに失敗してエラーとして記録されるが、
+   * それは切断の結果であって利用者へ伝えるべき障害ではない。
+   * 受信機側の異常であれば、受信機のエラーバナーが原因をそのまま示す。
+   */
   const stop = useCallback(() => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     setStatus('idle');
     setRateKbps(0);
+    setError('');
   }, []);
 
   /** 配信局一覧を取得する。認証情報を含まないため GET でよい */
@@ -94,6 +102,14 @@ export function useNtripClient({ writeToPort, isWriterReady }: UseNtripClientOpt
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    /**
+     * この呼び出しがまだ「いま生きている接続」かどうか。
+     *
+     * {@link stop} と再接続はどちらも `abortControllerRef` を差し替えてから
+     * 前の接続を中断するため、中断された側の後始末は必ず新しい接続より後に走る。
+     * 用済みの結果で新しい接続の表示を上書きしないよう、状態を触る前に確かめる。
+     */
+    const isCurrent = () => abortControllerRef.current === controller;
 
     try {
       const response = await fetch('/api/ntrip/stream', {
@@ -119,23 +135,30 @@ export function useNtripClient({ writeToPort, isWriterReady }: UseNtripClientOpt
 
         bytesReceivedRef.current += value.byteLength;
         lastDataAtRef.current = Date.now();
-        await writeToPort(value).catch((writeError: unknown) => {
-          console.error('シリアル書き込みエラー:', writeError);
-        });
+        // 書き込めないまま受信を続けても補正は効かない。理由を付けて接続ごと畳む
+        try {
+          await writeToPort(value);
+        } catch (writeError) {
+          const reason = writeError instanceof Error ? writeError.message : '原因不明';
+          throw new Error(`受信機への補正データ書き込みに失敗しました（${reason}）。`);
+        }
       }
 
-      setStatus('idle');
-      setRateKbps(0);
-    } catch (streamError) {
-      setRateKbps(0);
-      if (controller.signal.aborted) {
+      if (isCurrent()) {
         setStatus('idle');
-      } else {
-        setStatus('error');
-        setError(streamError instanceof Error ? streamError.message : 'NTRIP接続が切断されました。');
+        setRateKbps(0);
       }
+    } catch (streamError) {
+      // 中断された接続の失敗はここで捨てる。停止も再接続も、それぞれが自分で
+      // 表示を整えているため、用済みの結果を重ねて反映する必要はない
+      if (!isCurrent()) return;
+      setRateKbps(0);
+      // 受信を止めて HTTP 接続も閉じる。サーバー側の Caster 接続を残さないため
+      controller.abort();
+      setStatus('error');
+      setError(streamError instanceof Error ? streamError.message : 'NTRIP接続が切断されました。');
     } finally {
-      if (abortControllerRef.current === controller) abortControllerRef.current = null;
+      if (isCurrent()) abortControllerRef.current = null;
     }
   }, [isWriterReady, stop, writeToPort]);
 

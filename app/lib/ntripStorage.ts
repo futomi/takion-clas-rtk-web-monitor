@@ -1,4 +1,4 @@
-import { DEFAULT_NTRIP_HOST, DEFAULT_NTRIP_PORT } from './ntrip';
+import { DEFAULT_NTRIP_HOST, DEFAULT_NTRIP_PORT, isValidPort } from './ntrip';
 
 const STORAGE_KEY = 'ntrip_config';
 
@@ -38,7 +38,8 @@ function parseStoredConfig(raw: string | null): StoredNtripConfig {
     if (!isRecord(parsed)) return DEFAULT_NTRIP_CONFIG;
     return {
       host: typeof parsed.host === 'string' && parsed.host ? parsed.host : DEFAULT_NTRIP_CONFIG.host,
-      port: typeof parsed.port === 'number' && Number.isFinite(parsed.port) ? parsed.port : DEFAULT_NTRIP_CONFIG.port,
+      // 入力途中の不正なポートが保存されている場合があるため、既定値へ落として復帰させる
+      port: typeof parsed.port === 'number' && isValidPort(parsed.port) ? parsed.port : DEFAULT_NTRIP_CONFIG.port,
       mountpoint: typeof parsed.mountpoint === 'string' ? parsed.mountpoint : DEFAULT_NTRIP_CONFIG.mountpoint,
       username: typeof parsed.username === 'string' ? parsed.username : DEFAULT_NTRIP_CONFIG.username,
       autoSelect: typeof parsed.autoSelect === 'boolean' ? parsed.autoSelect : DEFAULT_NTRIP_CONFIG.autoSelect,

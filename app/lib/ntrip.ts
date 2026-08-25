@@ -42,6 +42,16 @@ export type NtripConnectionConfig = {
   password: string;
 };
 
+/**
+ * ポート番号として妥当な範囲かを検査する。
+ *
+ * API ルートの入力検査と、設定フォームの入力検査の双方が同じ判定を要る。
+ * サーバー専用モジュールに置くとフォーム側から参照できないため、ここに置く。
+ */
+export function isValidPort(port: number): boolean {
+  return Number.isInteger(port) && port >= 1 && port <= 65535;
+}
+
 export const DEFAULT_NTRIP_HOST = 'rtk2go.com';
 export const DEFAULT_NTRIP_PORT = 2101;
 /** RTK2GO はパスワードを要求しないため、既定値として慣例的にこの文字列を送る */

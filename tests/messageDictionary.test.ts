@@ -104,3 +104,48 @@ describe('カテゴリラベル', () => {
     }
   });
 });
+
+describe('RTCM 電文のフォールバック', () => {
+  it('個別に登録の無い MSM も番号帯から衛星系と段階を割り出す', () => {
+    // 1101 番台 (SBAS) と 1131 番台 (NavIC) は個別辞書に無く、この番号帯から組み立てる
+    const cases: [string, string, string][] = [
+      ['RTCM1101', 'SBAS', 'MSM1'],
+      ['RTCM1104', 'SBAS', 'MSM4'],
+      ['RTCM1107', 'SBAS', 'MSM7'],
+      ['RTCM1134', 'NavIC (IRNSS)', 'MSM4'],
+    ];
+
+    for (const [type, systemName, msmLevel] of cases) {
+      const definition = getMessageDefinition(type);
+      assert.ok(definition.titleJa.includes(systemName), `${type} の系統: ${definition.titleJa}`);
+      assert.ok(definition.summary.includes(msmLevel), `${type} の MSM 段階: ${definition.summary}`);
+      assert.equal(definition.category, 'rtk');
+    }
+  });
+
+  it('MSM 番号帯を 7 種で区切り、隣の系統へはみ出さない', () => {
+    assert.ok(getMessageDefinition('RTCM1107').titleJa.includes('SBAS'));
+    // 1108〜1110 は MSM として割り当てが無く、SBAS 側へ吸い込まれてはいけない
+    assert.ok(!getMessageDefinition('RTCM1108').titleJa.includes('SBAS'));
+  });
+
+  it('個別辞書に登録済みの MSM はそちらの解説を優先する', () => {
+    // 番号帯からの自動生成より、人が書いた解説のほうが具体的
+    assert.equal(getMessageDefinition('RTCM1074'), RTCM_DICTIONARY.RTCM1074);
+  });
+
+  it('番号を読み取れなかった RTCM3 を電文番号 3 と取り違えない', () => {
+    // parseRtcm はメッセージ種別を読めない場合に 'RTCM3' を返す。
+    // 'RTCM' の後ろを素直に数値化すると、存在しない ID 3 として表示してしまう
+    const definition = getMessageDefinition('RTCM3');
+    assert.equal(definition.category, 'rtk');
+    assert.match(definition.summary, /ID 不明/);
+    assert.doesNotMatch(definition.summary, /ID 3\b/);
+  });
+
+  it('MSM 帯の外にある未登録の RTCM 電文は汎用解説へ落とす', () => {
+    const definition = getMessageDefinition('RTCM1299');
+    assert.equal(definition.category, 'rtk');
+    assert.match(definition.summary, /ID 1299/);
+  });
+});

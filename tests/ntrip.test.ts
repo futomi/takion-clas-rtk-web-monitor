@@ -1,11 +1,24 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { parseSourceTable, rankMountpoints } from '../app/lib/ntrip.ts';
+import { isValidPort, parseSourceTable, rankMountpoints } from '../app/lib/ntrip.ts';
 import { calculateDistanceKm } from '../app/lib/geo.ts';
 
 const STR_TOKYO = 'STR;TOKYO_BASE;Tokyo;RTCM 3.2;1005(1),1077(1);2;GPS+GLO;SNIP;JPN;35.68;139.76;1;0;sNTRIP;none;N;N;9600;';
 const STR_OSAKA = 'STR;OSAKA_BASE;Osaka;RTCM 3.2;1005(1),1077(1);2;GPS+GLO;SNIP;JPN;34.69;135.50;0;0;sNTRIP;none;B;Y;4800;';
 const STR_NOGEO = 'STR;NOGEO;Unknown;RTCM 3.2;;2;GPS;SNIP;USA;;;0;0;sNTRIP;none;N;N;0;';
+
+describe('isValidPort', () => {
+  it('1〜65535 の整数のみ受理する', () => {
+    assert.equal(isValidPort(2101), true);
+    assert.equal(isValidPort(1), true);
+    assert.equal(isValidPort(65535), true);
+    assert.equal(isValidPort(0), false);
+    assert.equal(isValidPort(65536), false);
+    assert.equal(isValidPort(-1), false);
+    assert.equal(isValidPort(2101.5), false);
+    assert.equal(isValidPort(Number.NaN), false);
+  });
+});
 
 describe('parseSourceTable', () => {
   it('STR 行だけを拾い、CAS/NET/HTTP ヘッダを無視する', () => {

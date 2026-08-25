@@ -429,8 +429,10 @@ const RTCM_MSM_RANGES: { start: number; nameJa: string; description: string }[] 
   { start: 1071, nameJa: 'GPS', description: 'GPS衛星群のコード擬似距離・キャリア位相観測情報です。' },
   { start: 1081, nameJa: 'GLONASS', description: 'GLONASS衛星群の観測情報です。' },
   { start: 1091, nameJa: 'Galileo', description: 'Galileo衛星群の観測情報です。' },
+  { start: 1101, nameJa: 'SBAS', description: '静止衛星型衛星航法補強システム (SBAS) の観測情報です。' },
   { start: 1111, nameJa: 'QZSS (みちびき)', description: '準天頂衛星みちびきの観測情報です。' },
   { start: 1121, nameJa: 'BeiDou', description: 'BeiDou衛星群の観測情報です。' },
+  { start: 1131, nameJa: 'NavIC (IRNSS)', description: 'インドの地域衛星航法システム NavIC の観測情報です。' },
 ];
 
 /** MSM 番号帯 1 つあたりのメッセージ数（MSM1〜MSM7） */
@@ -456,16 +458,30 @@ function buildRtcmMsmDefinition(type: string, messageNumber: number): MessageDef
 }
 
 /** 辞書に登録の無い RTCM 電文に対する汎用解説 */
-function buildGenericRtcmDefinition(type: string, rawNumber: string): MessageDefinition {
+function buildGenericRtcmDefinition(type: string, messageNumber: number | null): MessageDefinition {
   return {
     type,
     displayName: type,
-    titleJa: `RTCM3 補正データ (${type})`,
+    titleJa: messageNumber === null ? 'RTCM3 補正データ' : `RTCM3 補正データ (${type})`,
     category: 'rtk',
     categoryJa: 'RTK補正',
-    summary: `RTCM3 補正メッセージ (ID ${rawNumber || '不明'})`,
+    summary: `RTCM3 補正メッセージ (ID ${messageNumber ?? '不明'})`,
     description: 'ネットワークRTKで受信された基準局からのバイナリ補正メッセージです。',
   };
+}
+
+/**
+ * 電文種別の末尾から RTCM の電文番号を取り出す。番号として読めなければ null。
+ *
+ * RTCM3 の電文番号はすべて 1000 番台以降なので、その範囲だけを番号として採用する。
+ * こうしないと、番号を読み取れなかった場合の種別 `RTCM3` を「電文番号 3」と
+ * 取り違えて、存在しない ID を表示してしまう。
+ */
+function readRtcmMessageNumber(type: string): number | null {
+  const rawNumber = type.slice('RTCM'.length);
+  if (!/^\d+$/.test(rawNumber)) return null;
+  const messageNumber = Number(rawNumber);
+  return messageNumber >= 1000 ? messageNumber : null;
 }
 
 /**
@@ -477,9 +493,9 @@ export function getMessageDefinition(type: string): MessageDefinition {
   if (known) return known;
 
   if (type.startsWith('RTCM')) {
-    const rawNumber = type.slice('RTCM'.length);
-    const messageNumber = Number(rawNumber);
-    return buildRtcmMsmDefinition(type, messageNumber) ?? buildGenericRtcmDefinition(type, rawNumber);
+    const messageNumber = readRtcmMessageNumber(type);
+    if (messageNumber === null) return buildGenericRtcmDefinition(type, null);
+    return buildRtcmMsmDefinition(type, messageNumber) ?? buildGenericRtcmDefinition(type, messageNumber);
   }
 
   return {

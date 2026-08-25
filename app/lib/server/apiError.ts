@@ -1,27 +1,23 @@
 import { NextResponse } from 'next/server';
+import { NtripParameterError } from '../ntripHeader';
 import { BlockedHostError } from './hostGuard';
+import { NtripRequestError } from './ntripError';
+import { ForbiddenOriginError } from './originGuard';
 
-/**
- * 利用者にそのまま提示してよいエラー。
- *
- * タイムアウトや受信上限の超過など、こちらが意図して投げたものだけをこの型で表す。
- * 素の socket エラー（`ECONNREFUSED …` など、内部構成が透ける文言）と区別するために使う。
- */
-export class NtripRequestError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'NtripRequestError';
-  }
-}
+export { NtripRequestError };
 
 /**
  * NTRIP 系 API ルートの catch 節から使う共通のエラー応答。
  *
- * 接続先が拒否された場合は 400、それ以外は上流の障害として 502 を返す。
+ * 入力そのものが不正だった場合と接続先が拒否された場合は 400、
+ * 越境呼び出しは 403、それ以外は上流の障害として 502 を返す。
  * 想定外の例外は文言を伏せ、既定メッセージへ丸める。
  */
 export function toNtripErrorResponse(error: unknown, fallbackMessage: string): NextResponse {
-  if (error instanceof BlockedHostError) {
+  if (error instanceof ForbiddenOriginError) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
+  }
+  if (error instanceof BlockedHostError || error instanceof NtripParameterError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
   if (error instanceof NtripRequestError) {

@@ -14,6 +14,30 @@ import type { Telemetry } from '../lib/telemetry';
 import type { ConnectionState, LogLine } from '../lib/types';
 import { getSerialApi, type SerialPortInfo, type SerialPortLike } from '../lib/webSerial';
 
+/** 受信カウンタを state へ写す間隔（ms） */
+const COUNTER_SAMPLE_INTERVAL_MS = 1000;
+/** 切断時に受信機の設定を戻すのを待つ上限（ms） */
+const RESTORE_TIMEOUT_MS = 1500;
+
+/**
+ * 期限付きで待つ。期限切れでも例外にはせず、そのまま次の後始末へ進む。
+ *
+ * ケーブルが抜けた直後の書き込みは、環境によっては解決も失敗もしないことがある。
+ * 切断処理がそこで止まると `connection` が 'disconnecting' のまま固まり、
+ * 画面から復帰できなくなってしまう。
+ */
+async function withTimeout(task: Promise<void>, timeoutMs: number): Promise<void> {
+  let timer: number | undefined;
+  try {
+    await Promise.race([
+      task,
+      new Promise<void>((resolve) => { timer = window.setTimeout(resolve, timeoutMs); }),
+    ]);
+  } finally {
+    if (timer !== undefined) window.clearTimeout(timer);
+  }
+}
+
 /**
  * TakionCM001（u-blox 系受信機）との Web Serial 接続を一手に引き受けるフック。
  *
@@ -27,8 +51,18 @@ export function useGnssReceiver() {
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [error, setError] = useState('');
   const [portInfo, setPortInfo] = useState<SerialPortInfo>({});
+  /**
+   * 受信フレーム数と受信バイト数。
+   *
+   * チャンクは秒あたり何度も届くのに対し、画面に出るのは件数と KB 表記だけで、
+   * どちらも秒単位の粒度しか持たない。チャンクごとに setState すると
+   * 表示が変わらないまま画面全体を描き直すことになるため、
+   * 受信ループでは ref だけを進め、下の 1 秒インターバルでまとめて state へ写す。
+   */
   const [frameCount, setFrameCount] = useState(0);
   const [byteCount, setByteCount] = useState(0);
+  const frameCountRef = useRef(0);
+  const byteCountRef = useRef(0);
   const [lastL6At, setLastL6At] = useState<number | null>(null);
   const [l6Summary, setL6Summary] = useState('');
 
@@ -138,7 +172,7 @@ export function useGnssReceiver() {
     }
 
     setTelemetry((current) => ({ ...current, ...combinedUpdate }));
-    setFrameCount((current) => current + entries.length);
+    frameCountRef.current += entries.length;
     if (l6At !== null) setLastL6At(l6At);
     if (l6Text !== null) setL6Summary(l6Text);
     if (!pausedRef.current) {
@@ -160,7 +194,7 @@ export function useGnssReceiver() {
         if (done) break;
         if (!value) continue;
 
-        setByteCount((current) => current + value.byteLength);
+        byteCountRef.current += value.byteLength;
 
         const merged = concatBytes(pending, value);
         const { frames, consumed } = scanFrames(merged, decoder);
@@ -177,12 +211,40 @@ export function useGnssReceiver() {
     }
   }, [consumeFrames]);
 
-  /** 補正データを受信機へ書き込む。NTRIP クライアントから使う */
+  /**
+   * 補正データを受信機へ書き込む。NTRIP クライアントから使う。
+   *
+   * 経路が閉じている場合は黙って捨てず失敗として返す。
+   * 受信機だけが切れた状態で RTCM を流し続けても、届いていないことに気付けないため。
+   */
   const writeToPort = useCallback(async (data: Uint8Array) => {
-    await writerRef.current?.write(data);
+    const writer = writerRef.current;
+    if (!writer) throw new Error('受信機への書き込み経路が閉じています。');
+    await writer.write(data);
   }, []);
 
   const isWriterReady = useCallback(() => writerRef.current !== null, []);
+
+  /**
+   * 受信ループを止め、reader が握っている readable のロックを返させる。
+   *
+   * 接続の途中で失敗した場合も切断の場合も、ここを通さずにポートを閉じると
+   * `port.close()` が「ロック済みのストリームは閉じられない」で失敗し、
+   * ポートが開いたまま残ってしまう。
+   */
+  const cancelReadTask = useCallback(async () => {
+    keepReadingRef.current = false;
+    // 呼び出し側は期限を切ってこれを待つため、待ち切れずに抜けた後で再接続が
+    // 走ることがある。片付ける対象をここで固定し、新しい読み取りを消さないようにする
+    const task = readTaskRef.current;
+    try {
+      await readerRef.current?.cancel();
+    } catch {
+      // 相手が既に居ない場合の cancel 失敗は、この後の後始末を妨げない
+    }
+    await task;
+    if (readTaskRef.current === task) readTaskRef.current = null;
+  }, []);
 
   /** 衛星集計と一時設定をすべて初期化する */
   const resetSession = useCallback(() => {
@@ -195,10 +257,12 @@ export function useGnssReceiver() {
     setConnection('disconnecting');
     keepReadingRef.current = false;
     try {
-      // 一時的に有効化した出力設定は必ず元へ戻す
-      await negotiator.restore();
-      await readerRef.current?.cancel();
-      await readTaskRef.current;
+      // 一時的に有効化した出力設定は必ず元へ戻す。
+      // 相手が既に居ない場合に備えて、待ち続けないよう期限を切る
+      await withTimeout(negotiator.restore(), RESTORE_TIMEOUT_MS);
+      // ケーブルが抜けた直後は cancel も解決しないことがある。
+      // ここで待ち続けると 'disconnecting' のまま固まるため、同じく期限を切る
+      await withTimeout(cancelReadTask(), RESTORE_TIMEOUT_MS);
       writerRef.current?.releaseLock();
       writerRef.current = null;
       await portRef.current.close();
@@ -210,7 +274,7 @@ export function useGnssReceiver() {
       resetSession();
       setConnection('idle');
     }
-  }, [negotiator, resetSession]);
+  }, [cancelReadTask, negotiator, resetSession]);
 
   const connect = useCallback(async (baudRate: number) => {
     const serial = getSerialApi();
@@ -223,6 +287,8 @@ export function useGnssReceiver() {
     setConnection('connecting');
     setTelemetry({});
     setLogs([]);
+    frameCountRef.current = 0;
+    byteCountRef.current = 0;
     setFrameCount(0);
     setByteCount(0);
     setLastL6At(null);
@@ -245,17 +311,39 @@ export function useGnssReceiver() {
       await negotiator.start();
     } catch (connectError) {
       const message = connectError instanceof Error ? connectError.message : '';
-      // ポート選択ダイアログのキャンセルはエラー扱いしない
-      if (!message.toLowerCase().includes('no port selected')) {
+      // ポート選択ダイアログのキャンセルはエラー扱いしない。
+      // ブラウザの文言に依存しないよう、例外の種別で判定する
+      const isDialogCancelled = connectError instanceof DOMException && connectError.name === 'NotFoundError';
+      if (!isDialogCancelled) {
         setError(message || '受信機に接続できませんでした。');
       }
+      // 受信ループは接続手順の途中から既に走っている。ここで止めておかないと、
+      // reader がロックを握ったままポートを閉じられず、開きっぱなしのまま
+      // 画面だけが未接続に戻ってしまう
+      await withTimeout(cancelReadTask(), RESTORE_TIMEOUT_MS);
       writerRef.current?.releaseLock();
       writerRef.current = null;
       if (portRef.current) await portRef.current.close().catch(() => undefined);
       portRef.current = null;
       setConnection('idle');
     }
-  }, [disconnect, negotiator, readFromPort, resetSession]);
+  }, [cancelReadTask, disconnect, negotiator, readFromPort, resetSession]);
+
+  // 接続中は毎秒、受信カウンタをまとめて state へ写す。
+  // 値が前回と同じなら React 側で再描画が省かれるため、無通信の間は描き直しが起きない
+  useEffect(() => {
+    if (connection !== 'connected') return;
+    const syncCounters = () => {
+      setFrameCount(frameCountRef.current);
+      setByteCount(byteCountRef.current);
+    };
+    const timer = window.setInterval(syncCounters, COUNTER_SAMPLE_INTERVAL_MS);
+    return () => {
+      window.clearInterval(timer);
+      // 切断の瞬間に溜まっていたぶんを取りこぼさない
+      syncCounters();
+    };
+  }, [connection]);
 
   // アンマウント時は読み取りを止め、開いたままのポートを解放する
   useEffect(() => () => {

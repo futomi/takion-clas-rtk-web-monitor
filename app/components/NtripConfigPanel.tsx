@@ -1,7 +1,7 @@
 'use client';
 
 import { formatKilobytes, formatSecondsAgo } from '../lib/format';
-import type { MountpointCandidate } from '../lib/ntrip';
+import { isValidPort, type MountpointCandidate } from '../lib/ntrip';
 import { hasPosition, type Telemetry } from '../lib/telemetry';
 import type { ConnectionState, NtripFormState, NtripLiveState, NtripStatus } from '../lib/types';
 
@@ -56,6 +56,18 @@ export default function NtripConfigPanel({
   const isBusy = status === 'connected' || status === 'connecting';
   const isConnected = status === 'connected';
   const positioned = hasPosition(telemetry);
+  const portIsValid = isValidPort(form.port);
+
+  /**
+   * ポート欄の入力を数値へ落とす。
+   *
+   * 空欄や数字以外は 0（ポート番号として不正な値）とし、下の検証で理由を提示する。
+   * 既定値へ即座に戻すと、一度消してから打ち直すという当たり前の操作ができなくなる。
+   */
+  const parsePort = (value: string) => {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
 
   return (
     <section className="ntrip-config-panel panel" aria-label="NTRIP接続設定">
@@ -85,21 +97,30 @@ export default function NtripConfigPanel({
             <input
               type="number"
               className="port-input"
-              value={form.port}
-              onChange={(event) => onFormChange({ port: Number(event.target.value) })}
+              // 0 は「未入力」を表す内部値。プレースホルダを見せたいので空欄として描く
+              value={form.port || ''}
+              onChange={(event) => onFormChange({ port: parsePort(event.target.value) })}
               placeholder="2101"
               disabled={isBusy}
+              min={1}
+              max={65535}
               aria-label="ポート番号"
+              aria-invalid={!portIsValid}
             />
             <button
               type="button"
               className="secondary-btn"
               onClick={onRefreshSources}
-              disabled={isFetchingSources || isConnected}
+              disabled={isFetchingSources || isConnected || !portIsValid}
             >
               {isFetchingSources ? '取得中…' : '局リスト更新'}
             </button>
           </div>
+          {!portIsValid && (
+            <small className="field-note field-note-error">
+              ポート番号は 1〜65535 の範囲で指定してください。
+            </small>
+          )}
         </div>
 
         <div className="ntrip-field">
@@ -199,7 +220,7 @@ export default function NtripConfigPanel({
               type="button"
               className="connect-button"
               onClick={onConnect}
-              disabled={connection !== 'connected' || status === 'connecting'}
+              disabled={connection !== 'connected' || status === 'connecting' || !portIsValid}
             >
               {status === 'connecting' ? '接続中…' : 'NTRIP 接続開始'}
             </button>

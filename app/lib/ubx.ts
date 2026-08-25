@@ -21,6 +21,42 @@ export const UBX_ID = {
   CFG_VALSET: 0x8a,
 } as const;
 
+/**
+ * u-blox が定義しているメッセージクラスの一覧。
+ *
+ * 走査中に同期バイト `B5 62` を見つけても、それが本物のフレーム先頭とは限らない。
+ * 続く 1 バイトがこの一覧に無ければ、たまたま並んだ 2 バイトだと判断できる。
+ * 偽の同期を長さ表記ごと信じてしまうと、そのフレームが揃うまで後続の正常な電文が
+ * 一切表示されなくなる（最大 16 KB ぶん、38400 bps なら数秒）ため、
+ * 確かめられるうちに弾いておく。
+ *
+ * 本アプリが解析するのは一部だけだが、解析しないクラスもログには残したいので、
+ * u-blox が採番しているクラスはすべて通す。
+ */
+const KNOWN_UBX_CLASSES = new Set([
+  0x01, // NAV
+  0x02, // RXM
+  0x04, // INF
+  0x05, // ACK
+  0x06, // CFG
+  0x09, // UPD
+  0x0a, // MON
+  0x0b, // AID（旧世代）
+  0x0d, // TIM
+  0x10, // ESF
+  0x13, // MGA
+  0x21, // LOG
+  0x27, // SEC
+  0x28, // HNR
+  0x29, // NAV2
+  0xf5, // RTCM
+]);
+
+/** u-blox が採番しているメッセージクラスか。フレーム走査時の同期確認に使う */
+export function isKnownUbxClass(messageClass: number): boolean {
+  return KNOWN_UBX_CLASSES.has(messageClass);
+}
+
 /** CFG キー: USB ポートにおける NAV-PVT 出力レート */
 export const CFG_KEY_MSGOUT_NAV_PVT_USB = 0x20910009;
 
@@ -42,6 +78,19 @@ const toHexByte = (value: number) => value.toString(16).toUpperCase().padStart(2
 /** フレーム先頭 6 バイトからペイロード長（リトルエンディアン 16bit）を読む */
 export function readUbxPayloadLength(frame: Uint8Array, offset = 0): number {
   return frame[offset + 4] | (frame[offset + 5] << 8);
+}
+
+/**
+ * ヘッダが名乗るペイロード長が、実際のフレーム長と辻褄が合っているか。
+ *
+ * ペイロードの読み出しは長さ表記を信じて `DataView` を張るため、
+ * 短いフレームに大きな長さが書かれていると範囲外で例外になる。受信ループの中で投げると
+ * 読み取りごと止まってしまうため、解析へ進む前にここで弾く。
+ * {@link ../frameScanner} を通ったフレームは必ず整合するが、
+ * 解析関数は単体でも呼べるので、その前提に頼らない。
+ */
+function payloadLengthIsConsistent(frame: Uint8Array): boolean {
+  return frame.length >= readUbxPayloadLength(frame) + UBX_FRAME_OVERHEAD;
 }
 
 /** UBX の 8bit Fletcher チェックサムを検証する */
@@ -71,6 +120,7 @@ export function ubxMessageType(messageClass: number, messageId: number): string 
 export function readValgetByte(frame: Uint8Array, expectedKey: number): number | null {
   const payloadLength = readUbxPayloadLength(frame);
   if (frame[2] !== UBX_CLASS.CFG || frame[3] !== UBX_ID.CFG_VALGET || payloadLength < 9) return null;
+  if (!payloadLengthIsConsistent(frame)) return null;
   const payload = new DataView(frame.buffer, frame.byteOffset + UBX_PAYLOAD_OFFSET, payloadLength);
   return payload.getUint32(4, true) === expectedKey ? payload.getUint8(8) : null;
 }
@@ -147,7 +197,7 @@ export function parseUbx(frame: Uint8Array): ParsedMessage {
   const valid = ubxChecksumIsValid(frame);
   const update: Partial<Telemetry> = {};
 
-  if (!valid) return { type, valid, update };
+  if (!valid || !payloadLengthIsConsistent(frame)) return { type, valid, update };
 
   const ack = readAckTarget(frame);
   if (ack) {

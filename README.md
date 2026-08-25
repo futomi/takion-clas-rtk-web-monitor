@@ -19,9 +19,9 @@ Google Chrome などの **Web Serial API** 対応ブラウザから直接USBシ�
    - **CLAS モード (みちびき L6 衛星補正)**: 準天頂衛星「みちびき」からのセンチメートル級補正情報を利用。
    - **ネットワークRTK (NTRIP) モード**: NTRIP Caster (rtk2go.com, 各種キャスター等) から補正データ (RTCM) を取得し、受信機へ注入してRTK測位を実現。
 
-3. **リアルタイムマップ & 衛星追跡**
-   - MapLibre GL を使用した高精度測位位置・軌跡のリアルタイム表示。
-   - GPS, QZSS (みちびき), GLONASS, Galileo, BeiDou 等の衛星配置・SNRのグラフィカル表示。
+3. **リアルタイムマップ & 衛星集計**
+   - MapLibre GL を使用した現在地と推定水平誤差（誤差円）のリアルタイム表示。進行方向に合わせてマーカーが回転し、測位品質で色が変わります。
+   - GPS, QZSS (みちびき), GLONASS, Galileo, BeiDou, SBAS 別の使用衛星数・可視衛星数と、HDOP / PDOP / VDOP の表示。
 
 4. **電文ログビューア & リファレンス**
    - 受信した NMEA / UBX / RTCM 電文をリアルタイム解析して日本語で解説表示。
@@ -70,11 +70,13 @@ app/
     ubx.ts          UBX バイナリの解析と設定コマンド
     rtcm.ts         RTCM3 フレームの解析と CRC-24Q
     frameScanner.ts 混在バイト列からのフレーム切り出し
-    satelliteTracker.ts  GSV / GSA から衛星を集計
-    correctionSource.ts  補正ソースと測位品質の表示判定
-    ntrip.ts        Source-table の解析と配信局の並べ替え
-    gnssMessages.ts 電文解説の辞書
-    server/         サーバー専用（接続先ホストの検証）
+    satelliteTracker.ts   GSV / GSA から衛星を集計
+    correctionSource.ts   補正ソースと測位品質の表示判定
+    ntrip.ts              Source-table の解析と配信局の並べ替え
+    ntripHeader.ts        Caster 応答ヘッダの解析とリクエスト組み立て
+    messageDictionary.ts  電文解説の辞書
+    server/               サーバー専用（接続先ホストの検証・呼び出し元オリジンの検証・
+                          リクエストボディの上限付き読み取り・Caster への接続と中継・同時実行数の制限）
   hooks/        Web Serial 受信・NTRIP 接続・ログ追従の状態管理
   components/   表示コンポーネント
   api/ntrip/    NTRIP Caster への中継 API
@@ -96,6 +98,15 @@ npm run check      # lint + typecheck + test をまとめて実行
 
 テストは Node.js 組み込みのテストランナーで動作し、追加の依存パッケージを必要としません。
 
+### 環境変数
+
+| 変数名 | 既定値 | 用途 |
+| --- | --- | --- |
+| `SITE_ORIGIN` | `http://localhost:3000` | OGP 画像などの絶対 URL を組み立てる基準オリジン。公開時は実際の URL を指定します |
+| `NTRIP_ALLOWED_HOSTS` | （未設定＝プライベート宛でなければ許可） | NTRIP Caster として接続を許可するホストのカンマ区切り一覧 |
+| `NTRIP_MAX_CONCURRENT_STREAMS` | `4` | NTRIP ストリーム中継の同時接続数の上限 |
+| `NTRIP_MAX_CONCURRENT_SOURCETABLES` | `4` | 配信局一覧（Source-table）取得の同時実行数の上限 |
+
 ### 接続先ホストの制限
 
 `/api/ntrip/*` はブラウザから指定されたホストへサーバー側から TCP 接続します。
@@ -108,6 +119,42 @@ npm run check      # lint + typecheck + test をまとめて実行
 ```bash
 NTRIP_ALLOWED_HOSTS=rtk2go.com,ntrip.example.jp npm run start
 ```
+
+なお、マウントポイント名とホスト名は組み立てた HTTP リクエストへそのまま載るため、
+制御文字や空白を含む値は組み立て時点で拒否しています（リクエストスプリッティング対策）。
+マウントポイント名・認証情報・リクエストボディにはそれぞれ長さの上限を設けており、
+巨大な値を送りつけてサーバーから第三者へ大量のデータを送らせること（増幅）も防いでいます。
+
+### 越境呼び出しの拒否
+
+`/api/ntrip/*` は認証を要求しないため、外部サイトが訪問者のブラウザを経由して
+呼び出せてしまうと、そのまま踏み台になります。`Sec-Fetch-Site` と `Origin` を検査し、
+このアプリ自身のページ以外からの呼び出しは 403 で拒否しています。
+
+（ブラウザ以外のクライアントはこれらのヘッダを詐称できるため、この検査だけに頼らず、
+下記の同時実行数の制限と上記の接続先の制限を併せて働かせています。）
+
+`Origin` の照合には受け取った `Host` ヘッダを使います。リバースプロキシを前段に置く場合は、
+**`Host` をブラウザが送った値のまま透過させてください**（`X-Forwarded-Host` へ退避させて
+`Host` を内部名へ書き換える設定だと、正当な呼び出しまで 403 になります）。
+nginx なら `proxy_set_header Host $host;` が該当します。
+
+### 同時実行数の制限
+
+`/api/ntrip/*` はいずれも 1 リクエストにつき Caster への TCP 接続を 1 本開きます。
+ストリーム中継は長時間張り続け、配信局一覧の取得は最大 4 MB を受信します。
+無制限に受け付けるとプロセスのソケットとメモリを食い潰されるため、プロセスあたりの
+同時本数を既定でそれぞれ 4 本に制限しています。上限は環境変数で変更できます。
+
+```bash
+NTRIP_MAX_CONCURRENT_STREAMS=8 NTRIP_MAX_CONCURRENT_SOURCETABLES=8 npm run start
+```
+
+また、ストリーム中継は受け取り側が読み出しに追いつかない場合、Caster 側の受信を
+一時停止して背圧をかけます。遅いクライアント 1 つでメモリを圧迫させないためです。
+
+これはあくまで最後の歯止めです。インターネットへ公開する場合は、リバースプロキシなど
+前段でのレート制限とアクセス制限を併せて設けてください。
 
 ### NTRIP のパスワードの扱い
 

@@ -1,4 +1,4 @@
-import { BAUD_RATE_OPTIONS, UBLOX_VENDOR_ID } from '../lib/constants';
+import { BAUD_RATE_OPTIONS } from '../lib/constants';
 import { formatHex } from '../lib/format';
 import type { ConnectionState } from '../lib/types';
 import type { SerialPortInfo } from '../lib/webSerial';
@@ -35,9 +35,10 @@ export default function DeviceToolbar({
         </div>
       </div>
 
+      {/* 未接続のうちは実測値が無い。既定値で埋めると「読み取れた ID」と区別が付かないため伏せる */}
       <div className="device-id">
         <span>VID / PID</span>
-        <code>{formatHex(portInfo.usbVendorId || UBLOX_VENDOR_ID)} / {formatHex(portInfo.usbProductId)}</code>
+        <code>{formatHex(portInfo.usbVendorId)} / {formatHex(portInfo.usbProductId)}</code>
       </div>
 
       <label className="baud-control">

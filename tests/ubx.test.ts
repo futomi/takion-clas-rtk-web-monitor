@@ -125,3 +125,27 @@ describe('parseUbx / NAV-PVT', () => {
     assert.deepEqual(parsed.update, {});
   });
 });
+
+describe('ペイロード長の整合検査', () => {
+  it('名乗る長さがフレーム長と合わないものは解析しない', () => {
+    // 長さ表記を信じて DataView を張るため、辻褄が合わないと範囲外で例外になる。
+    // 受信ループの中で投げると読み取りごと止まってしまう
+    const frame = buildUbxFrame(0x01, 0x07, new Array(92).fill(0));
+    // 長さフィールドだけを 92 → 4096 に書き換え、チェックサムも整合させる
+    frame[4] = 0x00;
+    frame[5] = 0x10;
+    let a = 0;
+    let b = 0;
+    for (let i = 2; i < frame.length - 2; i += 1) {
+      a = (a + frame[i]) & 0xff;
+      b = (b + a) & 0xff;
+    }
+    frame[frame.length - 2] = a;
+    frame[frame.length - 1] = b;
+
+    assert.ok(ubxChecksumIsValid(frame), 'チェックサム自体は通る前提のケース');
+    const parsed = parseUbx(frame);
+    assert.equal(parsed.type, 'PVT');
+    assert.deepEqual(parsed.update, {}, '解析へ進まず、例外も投げない');
+  });
+});

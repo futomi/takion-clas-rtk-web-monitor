@@ -1,5 +1,6 @@
 import { lookup } from 'node:dns/promises';
 import { BlockList, isIP } from 'node:net';
+import { MAX_HOSTNAME_LENGTH } from '../ntripHeader';
 
 /**
  * 外部ホストへの接続を許可してよいかを判定する。
@@ -12,6 +13,15 @@ import { BlockList, isIP } from 'node:net';
  * さらに、解決済みの IP をそのまま接続先として返すことで、検査後に別の IP を返す
  * DNS リバインディングも封じている。
  */
+
+/**
+ * ホスト名として受け付ける形。英数字・ハイフン・ドット・コロン（IPv6 リテラル）のみ。
+ *
+ * 解決結果の検査とは別に、文字種の時点で弾いておく。ここを通した文字列は
+ * `Host` ヘッダへそのまま載るため、CR / LF や空白が混ざると
+ * リクエストを分割される（{@link ../ntripHeader} の検査と二重に守る）。
+ */
+const HOSTNAME_PATTERN = /^[a-z0-9.\-:[\]]+$/;
 
 /** 接続を拒否する IP レンジ */
 const BLOCKED = new BlockList();
@@ -41,11 +51,11 @@ BLOCKED.addSubnet('ff00::', 8, 'ipv6'); // マルチキャスト
  * 逆に `::ffff:0:0/96` をまとめてブロックすると、Node の BlockList は素の IPv4 も
  * 射影表記として正規化するため、すべての IPv4 宛が拒否されてしまう点にも注意。
  */
-function normalizeAddress(address: string, family: 4 | 6): ResolvedTarget {
-  if (family !== 6) return { address, family };
+function normalizeAddress(address: string, family: 4 | 6, hostname: string): ResolvedTarget {
+  if (family !== 6) return { address, family, hostname };
   const mapped = /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i.exec(address);
-  if (mapped && isIP(mapped[1]) === 4) return { address: mapped[1], family: 4 };
-  return { address, family };
+  if (mapped && isIP(mapped[1]) === 4) return { address: mapped[1], family: 4, hostname };
+  return { address, family, hostname };
 }
 
 /** 検証済みの接続先 */
@@ -53,6 +63,13 @@ export type ResolvedTarget = {
   /** 実際に接続すべき IP アドレス */
   address: string;
   family: 4 | 6;
+  /**
+   * 正規化済みのホスト名。`Host` ヘッダにはこちらを使う。
+   *
+   * 検査したのは正規化後の文字列なので、リクエストへ載せる値も同じものに揃えないと、
+   * 「検査したホスト」と「名乗るホスト」がずれてしまう。
+   */
+  hostname: string;
 };
 
 export class BlockedHostError extends Error {
@@ -72,18 +89,13 @@ function readAllowList(): string[] | null {
   return raw.split(',').map((entry) => entry.trim().toLowerCase()).filter(Boolean);
 }
 
-/** ポート番号として妥当な範囲かを検査する */
-export function isValidPort(port: number): boolean {
-  return Number.isInteger(port) && port >= 1 && port <= 65535;
-}
-
 /**
  * ホスト名を解決し、接続してよい相手かを検証する。
  * 問題があれば {@link BlockedHostError} を投げる。
  */
 export async function resolveSafeTarget(host: string): Promise<ResolvedTarget> {
   const normalized = host.trim().toLowerCase();
-  if (!normalized || normalized.length > 253) {
+  if (!normalized || normalized.length > MAX_HOSTNAME_LENGTH || !HOSTNAME_PATTERN.test(normalized)) {
     throw new BlockedHostError('ホスト名が不正です。');
   }
 
@@ -95,7 +107,7 @@ export async function resolveSafeTarget(host: string): Promise<ResolvedTarget> {
   // IP リテラルならそのまま検査、ホスト名なら名前解決してから検査する
   const literalFamily = isIP(normalized);
   const candidates: ResolvedTarget[] = literalFamily
-    ? [normalizeAddress(normalized, literalFamily as 4 | 6)]
+    ? [normalizeAddress(normalized, literalFamily as 4 | 6, normalized)]
     : (await lookupOrThrow(normalized));
 
   for (const candidate of candidates) {
@@ -112,7 +124,7 @@ export async function resolveSafeTarget(host: string): Promise<ResolvedTarget> {
 async function lookupOrThrow(host: string): Promise<ResolvedTarget[]> {
   try {
     const addresses = await lookup(host, { all: true });
-    return addresses.map((entry) => normalizeAddress(entry.address, entry.family as 4 | 6));
+    return addresses.map((entry) => normalizeAddress(entry.address, entry.family as 4 | 6, host));
   } catch {
     throw new BlockedHostError('ホスト名を解決できませんでした。');
   }

@@ -1,7 +1,7 @@
 import { MAX_NMEA_BYTES, MAX_UBX_PAYLOAD_BYTES } from './constants';
 import { decodeNmeaSentence } from './nmea';
 import { RTCM_FRAME_OVERHEAD, RTCM_PREAMBLE, readRtcmPayloadLength, rtcmChecksumIsValid } from './rtcm';
-import { UBX_FRAME_OVERHEAD, readUbxPayloadLength, ubxChecksumIsValid } from './ubx';
+import { UBX_FRAME_OVERHEAD, isKnownUbxClass, readUbxPayloadLength, ubxChecksumIsValid } from './ubx';
 
 /** NMEA センテンス開始バイト `$` */
 const NMEA_START = 0x24;
@@ -28,6 +28,9 @@ export type ScanResult = {
  * フレームが途中で切れている場合はそこで走査を打ち切り、`consumed` をその手前に留める。
  * 呼び出し側が残りを次のチャンクと連結して再度渡すことで、境界をまたぐフレームも復元できる。
  * 同期外れ（チェックサム不一致や不正な長さ）の場合は 1 バイトずつずらして再同期を試みる。
+ * フレームの完成を待つ前に、ヘッダだけで偽物と分かる同期（未定義の UBX クラス、
+ * RTCM の予約ビット）はその場で読み飛ばす。偽の同期 1 つで後続の正常な電文が
+ * まとめて足止めされるのを避けるため。
  *
  * 判定にはチェックサム検証だけを使い、電文の中身は解析しない。解析は呼び出し側が
  * 切り出されたフレームに対して一度だけ行う。
@@ -42,6 +45,12 @@ export function scanFrames(buffer: Uint8Array, decoder: TextDecoder): ScanResult
     if (byte === UBX_SYNC_1) {
       if (buffer.length - cursor < 2) break;
       if (buffer[cursor + 1] !== UBX_SYNC_2) {
+        cursor += 1;
+        continue;
+      }
+      if (buffer.length - cursor < 3) break;
+      // 存在しないクラスなら偶然同期バイトが並んだだけ。長さ表記を信じて待たない
+      if (!isKnownUbxClass(buffer[cursor + 2])) {
         cursor += 1;
         continue;
       }

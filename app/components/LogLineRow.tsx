@@ -31,13 +31,27 @@ function ExplainedHeader({ line }: { line: LogLine }) {
  *
  * 親は毎秒の経過時間更新と受信チャンクごとに再描画されるのに対し、`line` は生成後に
  * 変化しない。最大 1000 行を毎秒描き直さないよう memo で包み、追加された行だけを描画する。
+ *
+ * 行そのものが詳細解説を開くボタンなので、マウスとキーボードの両方から操作できるようにする。
  */
 function LogLineRow({ line, mode, onSelect }: LogLineRowProps) {
+  // クリックでしか開けないとキーボードだけの利用者が詳細へ辿り着けないため、
+  // ボタンとして振る舞わせ Enter / Space も受け付ける
+  const select = () => onSelect(line);
+
   return (
     <div
       className="log-line"
-      onClick={() => onSelect(line)}
-      title="クリックしてこの電文の詳しい解説を表示"
+      onClick={select}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        // Space によるスクロールを止めてから開く
+        event.preventDefault();
+        select();
+      }}
+      role="button"
+      tabIndex={0}
+      title="クリックまたは Enter でこの電文の詳しい解説を表示"
     >
       {mode === 'raw' && (
         <div className="log-line-raw">

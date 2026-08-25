@@ -44,7 +44,7 @@ export default function PositionPanel({ telemetry, activeSource, quality }: Posi
   const positioned = hasPosition(telemetry);
 
   return (
-    <article className="position-panel panel">
+    <article className="panel">
       <div className="panel-heading">
         <div className="panel-title-with-badge">
           <h3>現在位置</h3>

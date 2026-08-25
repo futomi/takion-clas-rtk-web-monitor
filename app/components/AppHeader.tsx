@@ -1,11 +1,17 @@
 import type { ConnectionState } from '../lib/types';
 
-/** 接続状態チップの表示文字列 */
-function connectionText(connection: ConnectionState): string {
-  if (connection === 'connected') return '受信機 接続中';
-  if (connection === 'connecting') return '受信機 接続中…';
-  return '受信機 未接続';
-}
+/**
+ * 接続状態チップの表示文字列。
+ *
+ * 確立済みと確立途中は取り違えると意味が逆になるため、
+ * 三点リーダの有無ではなく語そのものを変えて区別する。
+ */
+const CONNECTION_TEXT: Record<ConnectionState, string> = {
+  connected: '受信機 接続済み',
+  connecting: '受信機 接続中…',
+  disconnecting: '受信機 切断中…',
+  idle: '受信機 未接続',
+};
 
 /** アプリ名と受信機の接続状態を示すヘッダー */
 export default function AppHeader({ connection }: { connection: ConnectionState }) {
@@ -21,7 +27,7 @@ export default function AppHeader({ connection }: { connection: ConnectionState 
       <div className="header-status">
         <div className={`connection-chip ${connection}`}>
           <span className="status-dot" />
-          {connectionText(connection)}
+          {CONNECTION_TEXT[connection]}
         </div>
       </div>
     </header>

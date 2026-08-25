@@ -119,8 +119,12 @@ export default function MonitorClient() {
 
   // 受信機との接続が切れたら NTRIP も止める。
   // 手動の切断だけでなく、ケーブルが抜けた場合など受信側から切れたときも確実に畳む。
+  //
+  // 'idle' を待たず 'disconnecting' の時点で畳むのは、切断処理が受信機への書き込み経路を
+  // 閉じるより先に RTCM の転送を止めたいため。順序が逆になると、閉じた経路へ書き込もうとして
+  // 失敗し、正常な切断なのに NTRIP のエラーとして記録されてしまう。
   useEffect(() => {
-    if (connection === 'idle') ntripStop();
+    if (connection === 'disconnecting' || connection === 'idle') ntripStop();
   }, [connection, ntripStop]);
 
   return (
