@@ -1,6 +1,6 @@
 # Takion CLAS / RTK Web Monitor
 
-TakionCM001をはじめとするGNSS受信機向けの、ブラウザ完結型高精度測位モニターアプリケーションです。
+高精度測位モジュール「TakionCM001」専用の、ブラウザ完結型高精度測位モニターアプリケーションです。
 
 Google Chrome などの **Web Serial API** 対応ブラウザから直接USBシリアルポートを開き、測位状況（CLAS / ネットワークRTK / 単独測位）や NMEA / UBX / RTCM 電文の解析ログをリアルタイムに表示します。
 
@@ -9,7 +9,7 @@ Google Chrome などの **Web Serial API** 対応ブラウザから直接USBシ�
 ## 主な機能
 
 1. **Web Serial 接続**
-   - ブラウザから直接 TakionCM001 (u-blox F9 / L6受信モジュール等) に接続。
+   - ブラウザから直接 TakionCM001 に接続。
    - ボーレート変更（9600 〜 460800 bps）対応。
    - NAV-PVT メッセージの有効化/無効化制御。
 
