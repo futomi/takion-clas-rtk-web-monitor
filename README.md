@@ -32,8 +32,9 @@ Google Chrome などの **Web Serial API** 対応ブラウザから直接USBシ�
 ## ローカルでの起動手順
 
 ### 必要環境
-- Node.js 20+ (推奨: Node 22+)
-- Google Chrome, Microsoft Edge, または Web Serial API をサポートする Chromium 系ブラウザ
+- **ハードウェア**: [TakionCM001](https://store.shopping.yahoo.co.jp/tamaki-syouji/takion2022-001.html) 本体、対応アンテナ、USBケーブル
+- **ソフトウェア**: Node.js 20+ (推奨: Node 22+)
+- **ブラウザ**: Google Chrome, Microsoft Edge 等の Web Serial API 対応ブラウザ
 
 ### 1. リポジトリのクローン
 ```bash
@@ -50,5 +51,9 @@ npm install
 ```bash
 npm run dev
 ```
-起動後、Web Serial API に対応したブラウザ（Google Chrome / Microsoft Edge 等）で [http://localhost:3000](http://localhost:3000) を開きます。
+
+### 4. TakionCM001 の接続と利用
+1. TakionCM001 にアンテナを接続し、USB ケーブルで PC に接続します。
+2. ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
+3. 画面左上の「接続」ボタンをクリックし、シリアルポート一覧から TakionCM001 を選択するとリアルタイムモニターが開始されます。
 
