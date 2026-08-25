@@ -1,6 +1,5 @@
 'use client';
 
-import type { FeatureCollection, Polygon } from 'geojson';
 import {
   AttributionControl,
   type GeoJSONSource,
@@ -11,16 +10,18 @@ import {
   type StyleSpecification,
 } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
+import { useTemporaryMessage } from '../hooks/useTemporaryMessage';
+import { MAP_ERROR_DURATION_MS } from '../lib/constants';
+import type { QualityTone } from '../lib/correctionSource';
+import { EMPTY_FEATURE_COLLECTION, createAccuracyCircle } from '../lib/geo';
 
 type MapPanelProps = {
   latitude?: number;
   longitude?: number;
   horizontalError?: number;
   course?: number;
-  qualityTone: string;
+  qualityTone: QualityTone;
 };
-
-type PositionFeatureCollection = FeatureCollection<Polygon>;
 
 const JAPAN_CENTER: [number, number] = [138.2, 36.2];
 const ACCURACY_SOURCE_ID = 'position-accuracy';
@@ -47,30 +48,6 @@ const OSM_STYLE: StyleSpecification = {
     },
   ],
 };
-
-function createAccuracyCircle(longitude: number, latitude: number, radiusMeters: number): PositionFeatureCollection {
-  const pointCount = 64;
-  const latitudeRadians = latitude * Math.PI / 180;
-  const metersPerLongitudeDegree = Math.max(1, 111_320 * Math.cos(latitudeRadians));
-  const coordinates: [number, number][] = [];
-
-  for (let index = 0; index <= pointCount; index += 1) {
-    const angle = index / pointCount * Math.PI * 2;
-    coordinates.push([
-      longitude + Math.cos(angle) * radiusMeters / metersPerLongitudeDegree,
-      latitude + Math.sin(angle) * radiusMeters / 110_574,
-    ]);
-  }
-
-  return {
-    type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: {},
-      geometry: { type: 'Polygon', coordinates: [coordinates] },
-    }],
-  };
-}
 
 function createMarkerElement() {
   const marker = document.createElement('div');
@@ -101,29 +78,13 @@ export default function MapPanel({
   const markerRef = useRef<Marker | null>(null);
   const markerElementRef = useRef<HTMLDivElement | null>(null);
   const centeredOnFirstFixRef = useRef(false);
-  const errorTimerRef = useRef<number | null>(null);
   const [following, setFollowing] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [mapError, setMapError] = useState('');
-
-  const clearMapError = () => {
-    if (errorTimerRef.current !== null) {
-      window.clearTimeout(errorTimerRef.current);
-      errorTimerRef.current = null;
-    }
-    setMapError('');
-  };
-
-  const showTemporaryError = (message: string) => {
-    if (errorTimerRef.current !== null) {
-      window.clearTimeout(errorTimerRef.current);
-    }
-    setMapError(message);
-    errorTimerRef.current = window.setTimeout(() => {
-      setMapError('');
-      errorTimerRef.current = null;
-    }, 4000);
-  };
+  const {
+    message: mapError,
+    show: showTemporaryError,
+    clear: clearMapError,
+  } = useTemporaryMessage(MAP_ERROR_DURATION_MS);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -191,7 +152,7 @@ export default function MapPanel({
       markerRef.current = null;
       markerElementRef.current = null;
     };
-  }, []);
+  }, [clearMapError, showTemporaryError]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -210,7 +171,7 @@ export default function MapPanel({
     const radius = horizontalError !== undefined && horizontalError > 0 ? horizontalError : 0;
     source?.setData(radius > 0
       ? createAccuracyCircle(longitude, latitude, radius)
-      : { type: 'FeatureCollection', features: [] });
+      : EMPTY_FEATURE_COLLECTION);
 
     if (!centeredOnFirstFixRef.current) {
       map.jumpTo({ center: [longitude, latitude], zoom: 17 });

@@ -1,0 +1,234 @@
+/* リセット・デザイントークン・全体レイアウト・ヘッダー・パネル共通 */
+
+/*
+ * ベースリセット。
+ *
+ * 以前は Tailwind の Preflight に依存していたが、ユーティリティクラスを 1 つも
+ * 使っていなかったため、必要な部分だけを取り込んで依存を外した。
+ * Preflight と同じカスケード順になるよう @layer base に置いている
+ * （レイヤー外の指定は常にレイヤー内より優先される）。
+ */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+
+  html {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+  }
+
+  /* 見出しの既定サイズ・太さを打ち消し、各コンポーネント側で明示させる */
+  h1, h2, h3, h4, h5, h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+
+  b, strong {
+    font-weight: bolder;
+  }
+
+  code, kbd, samp, pre {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 1em;
+  }
+
+  small {
+    font-size: 80%;
+  }
+
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+
+  ol, ul, menu {
+    list-style: none;
+  }
+
+  img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    vertical-align: middle;
+  }
+
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  button, input, select, optgroup, textarea, ::file-selector-button {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+
+  ::placeholder {
+    opacity: 1;
+  }
+
+  button,
+  input:where([type='button'], [type='reset'], [type='submit']),
+  ::file-selector-button {
+    appearance: button;
+  }
+
+  ::-webkit-inner-spin-button,
+  ::-webkit-outer-spin-button {
+    height: auto;
+  }
+
+  [hidden]:where(:not([hidden='until-found'])) {
+    display: none !important;
+  }
+}
+
+
+:root {
+  --ink: #10231e;
+  --muted: #66746f;
+  --line: #d8e1dc;
+  --paper: #eef2ef;
+  --surface: #ffffff;
+  --green: #0f6a4c;
+  --green-bright: #26b67a;
+  --green-soft: #ddf2e8;
+  --yellow: #d8ad35;
+  --red: #c85345;
+  --blue: #2563eb;
+  --blue-soft: #dbeafe;
+
+  /* 本文より一段淡い補助文字。--muted よりさらに主張を抑えたいラベルに使う */
+  --muted-soft: #72807b;
+
+  /*
+   * 中間色のグレースケール。
+   * Tailwind を外した際にそのまま残った slate 系の値で、罫線・補助文字・
+   * 淡い背景として繰り返し使われていたものを名前付きで一元化した。
+   */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+}
+
+html { min-height: 100%; background: var(--paper); }
+body {
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button, select, input { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+
+.app-shell {
+  width: min(1540px, 100%);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 0 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.topbar {
+  flex: 0 0 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(16, 35, 30, .12);
+}
+.brand-lockup, .header-status, .device-name {
+  display: flex;
+  align-items: center;
+}
+.brand-lockup { gap: 10px; }
+.brand-lockup h1 {
+  margin: 1px 0 0;
+  font: 700 20px/1 system-ui, sans-serif;
+  letter-spacing: -.025em;
+}
+.eyebrow, .card-label {
+  margin: 0;
+  color: var(--green);
+  font: 700 12px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: .15em;
+}
+.brand-mark {
+  position: relative;
+  width: 31px;
+  height: 31px;
+  border: 2px solid var(--green);
+  border-radius: 50%;
+}
+.brand-mark::before, .brand-mark::after, .brand-mark span {
+  content: '';
+  position: absolute;
+  border: 1px solid var(--green);
+  border-radius: 50%;
+}
+.brand-mark::before { inset: 5px; }
+.brand-mark::after { inset: 10px; background: var(--green); }
+.brand-mark span { width: 3px; height: 3px; top: -4px; left: 12px; background: var(--green); }
+.header-status { gap: 12px; }
+.connection-chip {
+  min-width: 92px;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .75);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9ca8a3;
+  box-shadow: 0 0 0 3px #e7ebe9;
+}
+.connection-chip.connected { color: var(--green); border-color: #b9dccb; }
+.connection-chip.connected .status-dot {
+  background: var(--green-bright);
+  box-shadow: 0 0 0 3px var(--green-soft);
+  animation: breathe 1.8s infinite;
+}
+.connection-chip.connecting .status-dot {
+  background: var(--yellow);
+  box-shadow: 0 0 0 3px #f5eccf;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 7px 24px rgba(28, 57, 46, .045);
+}

@@ -106,41 +106,6 @@
 .map-error-close:hover {
   opacity: 1;
 }
-.map-configuration {
-  min-height: 0;
-  flex: 1 1 auto;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 13px;
-  background:
-    repeating-linear-gradient(0deg, transparent 0 31px, rgba(15, 106, 76, .07) 31px 32px),
-    repeating-linear-gradient(90deg, transparent 0 31px, rgba(15, 106, 76, .07) 31px 32px),
-    #f5f8f6;
-  color: var(--muted);
-}
-.map-configuration-mark {
-  position: relative;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
-  border: 2px solid var(--green);
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-}
-.map-configuration-mark::after {
-  content: '';
-  width: 9px;
-  height: 9px;
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  border-radius: 50%;
-  background: var(--green);
-}
-.map-configuration strong { display: block; color: var(--ink); font-size: 14px; }
-.map-configuration p { margin: 3px 0 0; font-size: 12px; }
 .map-position-marker {
   position: relative;
   width: 28px;

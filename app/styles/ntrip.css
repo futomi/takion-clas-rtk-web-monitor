@@ -1,0 +1,185 @@
+/* NTRIP 接続設定パネル */
+
+.ntrip-config-panel {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-left: 4px solid var(--blue);
+  background: #fafcfe;
+}
+.ntrip-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ntrip-panel-header h3 {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.ntrip-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef4fb;
+  border: 1px solid #d0e1f9;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e40af;
+}
+.ntrip-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--slate-400);
+}
+.ntrip-led.connected {
+  background: var(--green-bright);
+  box-shadow: 0 0 0 3px var(--green-soft);
+  animation: blink 1s infinite;
+}
+.ntrip-led.connecting {
+  background: var(--yellow);
+  box-shadow: 0 0 0 3px #fef3c7;
+}
+.ntrip-led.error {
+  background: var(--red);
+  box-shadow: 0 0 0 3px #fee2e2;
+}
+
+.ntrip-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1.4fr 1fr auto;
+  align-items: end;
+  gap: 10px;
+}
+.ntrip-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ntrip-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.coords-hint {
+  font-size: 11px;
+  color: var(--green);
+  font-weight: 600;
+}
+.coords-hint.waiting {
+  color: #b45309;
+}
+.ntrip-field input,
+.ntrip-field select {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #ffffff;
+  font-size: 13px;
+  color: var(--ink);
+  outline: none;
+}
+.ntrip-field input:focus,
+.ntrip-field select:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px var(--blue-soft);
+}
+/* 入力欄に添える注記 */
+.field-note {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.input-group {
+  display: flex;
+  gap: 6px;
+}
+.input-group input {
+  flex: 1;
+  min-width: 0;
+}
+/* ポート番号入力は桁数が少ないので固定幅にする */
+.port-input {
+  width: 80px;
+}
+.mountpoint-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mountpoint-select-wrapper select {
+  flex: 1;
+  min-width: 0;
+}
+.secondary-btn {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--slate-100);
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.secondary-btn:hover:not(:disabled) {
+  background: var(--slate-200);
+}
+.text-link {
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+.ntrip-actions {
+  display: flex;
+  align-items: flex-end;
+}
+.ntrip-actions .connect-button {
+  height: 36px;
+  width: auto;
+  min-width: 120px;
+  padding: 0 14px;
+}
+
+.ntrip-error {
+  padding: 7px 10px;
+  border-radius: 4px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 12px;
+}
+.ntrip-live-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  font-size: 12px;
+  color: #065f46;
+}
+.live-pill {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--green-bright);
+  color: #ffffff;
+  font: 800 10px/1 ui-monospace, monospace;
+}

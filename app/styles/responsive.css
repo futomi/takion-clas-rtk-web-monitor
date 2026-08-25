@@ -1,0 +1,56 @@
+/* 画面幅ごとの調整と、動きを抑える設定への追従 */
+
+@media (max-width: 1024px) {
+  .ntrip-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  body { overflow: auto; }
+  .app-shell { height: auto; min-height: 100dvh; overflow: visible; }
+  .device-toolbar { grid-template-columns: minmax(170px, 1fr) auto 108px; }
+  .device-id { display: none; }
+  .mode-toggle-group { grid-template-columns: 1fr; }
+  .ntrip-grid { grid-template-columns: 1fr; }
+  .dashboard { grid-template-columns: 1fr 1fr; }
+  .motion-panel { grid-column: 1 / -1; }
+  .log-panel { min-height: 270px; }
+  .terminal { height: 190px; flex: 0 0 auto; }
+}
+
+@media (max-width: 620px) {
+  .app-shell { padding-inline: 10px; }
+  .topbar { flex-basis: 51px; }
+  .eyebrow { display: none; }
+  .brand-lockup h1 { font-size: 19px; }
+  .connection-chip { min-width: 80px; }
+  .device-toolbar {
+    flex-basis: auto;
+    grid-template-columns: 1fr 92px;
+    gap: 9px;
+  }
+  .device-heading { grid-column: 1 / -1; }
+  .baud-control { justify-content: space-between; }
+  .baud-control select { width: 118px; }
+  .connect-button { width: 92px; }
+  .dashboard { grid-template-columns: 1fr; }
+  .satellites-section { grid-template-columns: 1fr; }
+  .motion-panel { grid-column: auto; }
+  .position-meta { gap: 7px; }
+  .log-heading { display: grid; }
+  .log-actions { margin-top: 7px; }
+  .log-summary { grid-template-columns: 80px 90px; }
+  .sentence-chips { grid-column: 1 / -1; justify-content: flex-start; }
+  .log-line { grid-template-columns: 66px 68px minmax(0, 1fr); }
+  .checksum { display: none; }
+  footer { display: block; text-align: center; height: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

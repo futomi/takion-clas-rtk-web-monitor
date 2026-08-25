@@ -1,0 +1,79 @@
+/* 受信機への接続ツールバー */
+
+.device-toolbar {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) auto auto 108px;
+  align-items: center;
+  gap: 16px;
+}
+.device-heading { min-width: 0; }
+.device-name { gap: 9px; margin-top: 3px; }
+.device-name h2 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+  line-height: 1.2;
+}
+.api-badge {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font: 700 12px/1 ui-monospace, Consolas, monospace;
+}
+.api-badge.supported { color: var(--green); background: var(--green-soft); }
+.api-badge.unsupported { color: var(--red); background: #f9e4df; }
+.device-id {
+  min-width: 160px;
+  display: grid;
+  gap: 2px;
+  color: #87928e;
+  font-size: 12px;
+}
+.device-id code {
+  color: #52645d;
+  font: 600 14px ui-monospace, Consolas, monospace;
+}
+.baud-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.baud-control select {
+  width: 132px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 9px;
+  outline: none;
+  background: #f8faf8;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+.baud-control select:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+.connect-button {
+  width: 108px;
+  height: 38px;
+  border: 0;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--green);
+  font-size: 14px;
+  font-weight: 700;
+  transition: background .16s, transform .16s;
+}
+.connect-button:hover:not(:disabled) { background: #0a583f; transform: translateY(-1px); }
+.connect-button:disabled { opacity: .5; }
+.disconnect-button { color: var(--green); background: var(--green-soft); }
+.disconnect-button:hover:not(:disabled) { color: #fff; background: #c2e8d6; }
+
+/* 補正モード切り替えパネル */

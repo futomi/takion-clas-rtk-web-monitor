@@ -1,0 +1,240 @@
+/* モーダル共通枠・電文詳細・電文リファレンス一覧 */
+
+/* モーダル ダイアログ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 25, 20, .65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+  animation: fadeIn .15s ease-out;
+}
+.modal-content {
+  background: #ffffff;
+  color: var(--ink);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, .2);
+  width: min(680px, 100%);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp .18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #f8faf9;
+}
+.modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.modal-title-group h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.modal-close-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.modal-close-btn:hover {
+  background: var(--slate-200);
+  color: var(--ink);
+}
+.modal-body {
+  padding: 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-size: 13.5px;
+}
+.modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.modal-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--green);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  margin: 0;
+}
+/* セクション内の右寄せアクション行 */
+.modal-section-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+/* セクション内に置く小さめのボタン */
+.secondary-btn.compact-btn {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+/* 「この電文の意味」の強調ボックス */
+.modal-meaning-box {
+  padding: 10px 12px;
+  border: 1px solid var(--slate-200);
+  border-radius: 4px;
+  background: #f8faf9;
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 600;
+}
+/* タイトル横のアイコン */
+.modal-title-icon {
+  font-size: 18px;
+}
+.modal-description {
+  margin: 0;
+  line-height: 1.6;
+  color: #334155;
+}
+.modal-raw-box {
+  background: #11211c;
+  color: #6ee7b7;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font: 12px/1.4 ui-monospace, Consolas, monospace;
+  overflow-x: auto;
+  word-break: break-all;
+  border: 1px solid #234237;
+}
+.fields-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin-top: 4px;
+}
+.fields-table th, .fields-table td {
+  padding: 7px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--slate-200);
+}
+.fields-table th {
+  background: var(--slate-100);
+  color: var(--slate-600);
+  font-weight: 700;
+  font-size: 11.5px;
+}
+.fields-table td.field-name {
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+}
+.fields-table td.field-desc {
+  color: var(--slate-500);
+}
+.fields-table-name-col {
+  width: 130px;
+}
+
+/* 辞書リファレンス用 */
+.dict-filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.dict-filter-bar input {
+  flex: 1;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+.dict-filter-bar input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px var(--green-soft);
+}
+/* カテゴリタブの並び */
+.dict-tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dict-tab {
+  height: 28px;
+  font-size: 11.5px;
+}
+.dict-tab.active {
+  border-color: var(--green);
+  background-color: var(--green);
+  color: #ffffff;
+}
+.dict-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.dict-card {
+  padding: 10px 14px;
+  border: 1px solid var(--slate-200);
+  border-radius: 6px;
+  background: #fafcfb;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dict-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dict-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dict-card-title {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #0f172a;
+}
+.dict-card-summary {
+  font-size: 12px;
+  color: #047857;
+  font-weight: 600;
+}
+.dict-card-desc {
+  font-size: 12.5px;
+  color: var(--slate-600);
+  line-height: 1.45;
+}
+.dict-card-fields {
+  margin-top: 4px;
+  color: var(--slate-500);
+  font-size: 11.5px;
+}
+.dict-empty {
+  padding: 24px;
+  color: var(--slate-500);
+  text-align: center;
+}

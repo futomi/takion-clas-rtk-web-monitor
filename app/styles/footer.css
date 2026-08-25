@@ -1,0 +1,21 @@
+/* フッター */
+
+footer {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+  text-align: center;
+}
+footer p {
+  margin: 0;
+}
+.footer-link {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease, text-decoration 0.15s ease;
+}
+.footer-link:hover {
+  color: var(--green);
+  text-decoration: underline;
+}

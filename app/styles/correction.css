@@ -1,0 +1,62 @@
+/* 補正モード切り替えパネル */
+
+.correction-mode-panel {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mode-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.mode-active-indicator {
+  font-size: 12px;
+  color: var(--muted);
+}
+.mode-active-indicator strong {
+  color: var(--ink);
+}
+.mode-toggle-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.mode-tab {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #f9fbf9;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  transition: all .15s ease;
+}
+.mode-tab:hover {
+  background: #f0f5f2;
+  border-color: #bccbc4;
+}
+.mode-tab.active {
+  border-color: var(--green);
+  background: #f0f8f4;
+  box-shadow: 0 0 0 2px var(--green-soft);
+}
+.mode-icon {
+  font-size: 20px;
+  flex: 0 0 auto;
+}
+.mode-tab strong {
+  display: block;
+  font-size: 13px;
+  color: var(--ink);
+}
+.mode-tab small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* NTRIP 設定 & 接続パネル */

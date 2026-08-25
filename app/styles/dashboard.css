@@ -1,0 +1,486 @@
+/* 測位ダッシュボード（現在位置・測位ステータス・衛星内訳・DOP・移動情報） */
+
+.dashboard {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1.15fr 1.25fr 0.68fr;
+  gap: 10px;
+  align-items: stretch;
+}
+.dashboard .panel {
+  min-width: 0;
+  padding: 9px 13px;
+  display: flex;
+  flex-direction: column;
+}
+.panel-heading, .log-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 26px;
+}
+.panel-title-with-badge {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.source-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  width: fit-content;
+  line-height: 1.3;
+}
+.source-tag.clas {
+  color: var(--green);
+  background: var(--green-soft);
+  border: 1px solid #bce4d0;
+}
+.source-tag.clas-converging {
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+.source-tag.ntrip {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+.source-tag.ntrip-converging {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+.source-tag.none {
+  color: #4b5563;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+.panel h3 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.2;
+  letter-spacing: -.015em;
+}
+.fix-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 50px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 4px;
+  text-align: center;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: .03em;
+}
+.fix-badge.fix { color: #fff; background: var(--green); }
+.fix-badge.float { color: #785c0f; background: #f3e6ae; }
+.fix-badge.single { color: #235340; background: var(--green-soft); }
+.fix-badge.none { color: #6c7873; background: #e9eeeb; }
+
+.fix-source-detail {
+  display: inline-block;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.coordinate-display {
+  margin: 4px 0;
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.coordinate-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 14px;
+  align-items: baseline;
+  gap: 6px;
+}
+.coordinate-row + .coordinate-row { margin-top: 1px; }
+.coordinate-row .axis {
+  color: #8a9792;
+  font: 700 12px ui-monospace, Consolas, monospace;
+  letter-spacing: .08em;
+}
+.coordinate-row strong {
+  overflow: hidden;
+  color: #98a29e;
+  font: 600 clamp(18px, 1.6vw, 23px)/1.15 ui-monospace, SFMono-Regular, Consolas, monospace;
+  letter-spacing: -.02em;
+}
+.coordinate-display.has-position strong { color: var(--ink); }
+.coordinate-row .direction { color: var(--green); font: 800 13px ui-monospace, Consolas, monospace; }
+.position-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 2px;
+}
+.position-meta div { min-width: 0; }
+.position-meta span {
+  display: block;
+  margin-bottom: 1px;
+  color: var(--muted-soft);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.position-meta strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 15px/1.2 ui-monospace, Consolas, monospace;
+}
+.position-meta small {
+  color: #87938e;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.signal-orbit { position: relative; width: 24px; height: 18px; display: block; flex: 0 0 auto; }
+.signal-orbit i {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  border: 1.5px solid #b3beb9;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  transform: rotate(-45deg);
+}
+.signal-orbit i:nth-child(1) { width: 7px; height: 7px; }
+.signal-orbit i:nth-child(2) { width: 13px; height: 13px; }
+.signal-orbit i:nth-child(3) { width: 19px; height: 19px; }
+.signal-orbit.active i { border-top-color: var(--green-bright); border-right-color: var(--green-bright); }
+.fix-state {
+  margin: 4px 0;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.fix-indicator {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #a5afab;
+  box-shadow: 0 0 0 2.5px #edf0ee;
+}
+.fix-indicator.fix { background: var(--green-bright); box-shadow: 0 0 0 2.5px var(--green-soft); }
+.fix-indicator.float { background: var(--yellow); box-shadow: 0 0 0 2.5px #f6efd6; }
+.fix-state strong { display: inline-block; margin-right: 4px; font-size: 13px; font-weight: 700; line-height: 1.2; }
+
+/* 衛星ステータス & 内訳セクション (左右2カラム配置) */
+.satellites-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.sat-group {
+  background: #f8faf9;
+  border: 1px solid #e2eae5;
+  border-radius: 5px;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.sat-group-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.sat-group-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #556961;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.sat-group-total {
+  font-size: 10.5px;
+  color: var(--muted-soft);
+  white-space: nowrap;
+}
+
+.sat-group-total strong {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sat-group-total small {
+  font-size: 9.5px;
+  color: var(--muted-soft);
+  margin-left: 1px;
+}
+
+.sat-breakdown-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2.5px;
+}
+
+.sat-breakdown-empty {
+  font-size: 10.5px;
+  color: var(--slate-400);
+  padding: 1px 0;
+}
+
+.sat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-sizing: border-box;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.sat-chip-name {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0.9;
+}
+
+.sat-chip-count {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-weight: 800;
+  font-size: 10.5px;
+}
+
+/* 各衛星システムごとの配色 (視認性が高くコントラストのあるトーン) */
+.sat-chip.gps {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.sat-chip.qzss {
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.sat-chip.galileo {
+  background: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+
+.sat-chip.glonass {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.sat-chip.beidou {
+  background: #ccfbf1;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
+}
+
+.sat-chip.sbas,
+.sat-chip.other {
+  background: var(--slate-100);
+  color: var(--slate-600);
+  border: 1px solid var(--slate-200);
+}
+
+/* DOP 精度低下率 コンテナ & カード */
+.dop-container {
+  margin-top: auto;
+  padding: 4px 6px;
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dop-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.dop-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--slate-600);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.dop-status-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.dop-status-tag.great {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.dop-status-tag.good {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.dop-status-tag.fair {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.dop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.dop-card {
+  background: #ffffff;
+  border: 1px solid var(--slate-200);
+  border-radius: 3px;
+  padding: 2px 5px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.dop-card.primary {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.dop-card-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--slate-500);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.dop-card-label small {
+  display: inline;
+  font-size: 8.5px;
+  font-weight: 500;
+  color: var(--slate-400);
+  margin-left: 2px;
+}
+
+.dop-card-value {
+  font: 700 12px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.motion-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.speed-value {
+  margin: 2px 0 0;
+  padding-top: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.speed-value strong {
+  display: inline-block;
+  overflow: hidden;
+  font: 600 clamp(22px, 2vw, 26px)/1 ui-monospace, Consolas, monospace;
+  letter-spacing: -.03em;
+}
+.speed-value span {
+  display: inline-block;
+  color: var(--green);
+  font: 700 12px ui-monospace, Consolas, monospace;
+}
+.motion-meta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: auto;
+}
+.course-line, .date-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11.5px;
+}
+.course-line span, .date-line span {
+  display: block;
+  margin: 0;
+  color: var(--muted-soft);
+  font-weight: 600;
+  font-size: 11px;
+}
+.course-line strong, .date-line strong {
+  font: 700 13px ui-monospace, Consolas, monospace;
+}
+.course-rule {
+  height: 2px;
+  margin: 2px 0 3px;
+  overflow: hidden;
+  background: #e5eae7;
+  border-radius: 1px;
+}
+.course-rule span {
+  display: block;
+  width: 6px;
+  height: 2px;
+  margin-left: -3px;
+  background: var(--green);
+  transition: transform .3s;
+}
+.date-line {
+  margin-top: 2px;
+  padding-top: 3px;
+  border-top: 1px solid var(--line);
+}

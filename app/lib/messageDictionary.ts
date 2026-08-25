@@ -1,104 +1,104 @@
+/**
+ * 受信しうる電文（NMEA / UBX / RTCM3）の解説辞書。
+ *
+ * 表示用の文言だけを持つデータモジュールで、解析ロジックは含まない。
+ * 電文の追加はこのファイルへの追記だけで完結する。
+ */
+
 export type MessageCategory = 'position' | 'satellite' | 'clas' | 'rtk' | 'system' | 'other';
 
-export type GnssSystemKey = 'gps' | 'qzss' | 'galileo' | 'glonass' | 'beidou' | 'sbas' | 'other';
-
-export type GnssSystemInfo = {
-  key: GnssSystemKey;
-  nameJa: string;
-  nameEn: string;
-  short: string;
+/**
+ * カテゴリの表示ラベル。ログの絞り込みと電文リファレンスのタブで同じ文言を使うため、
+ * 各画面で持たずにここを唯一の定義元とする。
+ */
+export const MESSAGE_CATEGORY_LABELS: Record<MessageCategory, string> = {
+  position: '📍 測位・位置',
+  satellite: '🛰️ 衛星・精度',
+  clas: '📡 CLAS補正',
+  rtk: '🌐 RTK補正',
+  system: '⚙️ システム・設定',
+  other: 'その他',
 };
 
-export type SatelliteBreakdown = Partial<Record<GnssSystemKey, number>>;
+/**
+ * 絞り込み UI に並べるカテゴリと、その順序。
+ * `other` は辞書に登録された電文が無い（未知電文のフォールバック専用）ため除く。
+ */
+export const SELECTABLE_MESSAGE_CATEGORIES: MessageCategory[] = [
+  'position',
+  'satellite',
+  'clas',
+  'rtk',
+  'system',
+];
 
-export const GNSS_SYSTEMS: Record<GnssSystemKey, GnssSystemInfo> = {
-  gps: { key: 'gps', nameJa: 'GPS', nameEn: 'GPS', short: 'GPS' },
-  qzss: { key: 'qzss', nameJa: 'みちびき', nameEn: 'QZSS', short: 'QZS' },
-  galileo: { key: 'galileo', nameJa: 'Galileo', nameEn: 'Galileo', short: 'GAL' },
-  glonass: { key: 'glonass', nameJa: 'GLONASS', nameEn: 'GLONASS', short: 'GLO' },
-  beidou: { key: 'beidou', nameJa: 'BeiDou', nameEn: 'BeiDou', short: 'BDS' },
-  sbas: { key: 'sbas', nameJa: 'SBAS', nameEn: 'SBAS', short: 'SBA' },
-  other: { key: 'other', nameJa: 'その他', nameEn: 'Other', short: 'OTH' },
+/** 絞り込み UI の選択肢 1 件 */
+export type MessageCategoryOption = {
+  value: 'all' | MessageCategory;
+  label: string;
 };
 
-export const GNSS_SYSTEM_ORDER: GnssSystemKey[] = ['gps', 'qzss', 'galileo', 'glonass', 'beidou', 'sbas', 'other'];
-
 /**
- * Talker ID から衛星システムを特定
+ * 「すべて」＋各カテゴリという絞り込み選択肢を組み立てる。
+ *
+ * ログパネルのプルダウンと電文リファレンスのタブが同じ並び・同じ表記を使うため、
+ * 組み立て方をここに 1 つだけ置く。先頭項目の文言だけは画面ごとに違うので引数で受ける。
  */
-export function getGnssSystemFromTalker(talker: string): GnssSystemKey {
-  const t = talker.toUpperCase();
-  if (t === 'GP') return 'gps';
-  if (t === 'GQ' || t === 'QZ') return 'qzss';
-  if (t === 'GA') return 'galileo';
-  if (t === 'GL') return 'glonass';
-  if (t === 'GB' || t === 'BD') return 'beidou';
-  if (t === 'GI') return 'other';
-  if (t === 'SB') return 'sbas';
-  return 'other';
+export function buildCategoryOptions(allLabel: string): MessageCategoryOption[] {
+  return [
+    { value: 'all', label: allLabel },
+    ...SELECTABLE_MESSAGE_CATEGORIES.map((category) => ({
+      value: category,
+      label: MESSAGE_CATEGORY_LABELS[category],
+    })),
+  ];
 }
 
-/**
- * NMEA 4.10+ の System ID (1-6) から衛星システムを特定
- */
-export function getGnssSystemFromSystemId(systemId: number | string | undefined): GnssSystemKey | null {
-  if (!systemId) return null;
-  const id = Number(systemId);
-  switch (id) {
-    case 1: return 'gps';
-    case 2: return 'glonass';
-    case 3: return 'galileo';
-    case 4: return 'beidou';
-    case 5: return 'qzss';
-    case 6: return 'other';
-    default: return null;
-  }
-}
-
-/**
- * PRN 番号と Talker / System ID から衛星システムを特定
- */
-export function identifyGnssSystem(prn: number, talker?: string, systemId?: number | string): GnssSystemKey {
-  const bySysId = getGnssSystemFromSystemId(systemId);
-  if (bySysId) return bySysId;
-
-  if (talker && talker !== 'GN') {
-    return getGnssSystemFromTalker(talker);
-  }
-
-  if (prn >= 193 && prn <= 202) return 'qzss';
-  if (prn >= 65 && prn <= 96) return 'glonass';
-  if (prn >= 301 && prn <= 336) return 'galileo';
-  if (prn >= 401 && prn <= 463) return 'beidou';
-  if ((prn >= 33 && prn <= 64) || (prn >= 120 && prn <= 158)) return 'sbas';
-  if (prn >= 1 && prn <= 32) return 'gps';
-
-  return 'other';
-}
-
-export type FieldExplanation = {
+/** 電文中の 1 フィールドについての解説 */
+export type MessageFieldExplanation = {
   name: string;
-  value?: string | number;
   description: string;
 };
 
 export type MessageDefinition = {
+  /** 辞書のキーと必ず一致する電文種別。解析結果から引くのはこの値 */
   type: string;
+  /** 画面に出す正式名称（例: 'PVT (UBX-NAV-PVT)'）。キーと異なってよい */
+  displayName: string;
   titleJa: string;
+  /** 絞り込みに使う大分類 */
   category: MessageCategory;
+  /**
+   * バッジに出す小分類の日本語ラベル。`category` の訳語ではなく、より細かい粒度を持つ
+   * （例: `position` に「測位情報」「測位・航法」「誤差統計」「UBX測位解」が同居する）。
+   * 大分類の表示名が欲しい場合は {@link MESSAGE_CATEGORY_LABELS} を引く。
+   */
   categoryJa: string;
   summary: string;
   description: string;
-  fields?: { name: string; description: string }[];
+  fields?: MessageFieldExplanation[];
 };
+
+/**
+ * 辞書リテラルが持つ内容。`type` はキーから機械的に注入するため定義側では持たない。
+ * こうすることでキーと `type` が食い違う余地を構造的に無くしている。
+ */
+type MessageDefinitionSeed = Omit<MessageDefinition, 'type'>;
+
+/** キーを `type` として注入しながら辞書を組み立てる */
+function buildDictionary(seeds: Record<string, MessageDefinitionSeed>): Record<string, MessageDefinition> {
+  return Object.fromEntries(
+    Object.entries(seeds).map(([type, seed]) => [type, { type, ...seed }]),
+  );
+}
 
 
 // ==========================================
 // 1. NMEA 0183 辞書
 // ==========================================
-export const NMEA_DICTIONARY: Record<string, MessageDefinition> = {
+const NMEA_SEEDS: Record<string, MessageDefinitionSeed> = {
   GGA: {
-    type: 'GGA',
+    displayName: 'GGA',
     titleJa: '基本測位・Fixデータ',
     category: 'position',
     categoryJa: '測位情報',
@@ -115,7 +115,7 @@ export const NMEA_DICTIONARY: Record<string, MessageDefinition> = {
     ],
   },
   RMC: {
-    type: 'RMC',
+    displayName: 'RMC',
     titleJa: '推奨最小ナビゲーション情報',
     category: 'position',
     categoryJa: '測位・航法',
@@ -129,7 +129,7 @@ export const NMEA_DICTIONARY: Record<string, MessageDefinition> = {
     ],
   },
   GSA: {
-    type: 'GSA',
+    displayName: 'GSA',
     titleJa: '衛星配置・精度劣化係数 (DOP)',
     category: 'satellite',
     categoryJa: '衛星・精度',
@@ -144,7 +144,7 @@ export const NMEA_DICTIONARY: Record<string, MessageDefinition> = {
     ],
   },
   GSV: {
-    type: 'GSV',
+    displayName: 'GSV',
     titleJa: '可視衛星情報 (仰角・方位・電波強度)',
     category: 'satellite',
     categoryJa: '衛星・電波',
@@ -160,7 +160,7 @@ export const NMEA_DICTIONARY: Record<string, MessageDefinition> = {
     ],
   },
   GST: {
-    type: 'GST',
+    displayName: 'GST',
     titleJa: '擬似距離・測位誤差統計情報',
     category: 'position',
     categoryJa: '誤差統計',
@@ -174,7 +174,7 @@ export const NMEA_DICTIONARY: Record<string, MessageDefinition> = {
     ],
   },
   VTG: {
-    type: 'VTG',
+    displayName: 'VTG',
     titleJa: '対地進路・速度',
     category: 'position',
     categoryJa: '測位・航法',
@@ -187,7 +187,7 @@ export const NMEA_DICTIONARY: Record<string, MessageDefinition> = {
     ],
   },
   ZDA: {
-    type: 'ZDA',
+    displayName: 'ZDA',
     titleJa: 'UTC日時・タイムゾーン',
     category: 'system',
     categoryJa: '日時情報',
@@ -199,7 +199,7 @@ export const NMEA_DICTIONARY: Record<string, MessageDefinition> = {
     ],
   },
   GLL: {
-    type: 'GLL',
+    displayName: 'GLL',
     titleJa: '地理的位置 (緯度・経度)',
     category: 'position',
     categoryJa: '測位情報',
@@ -207,7 +207,7 @@ export const NMEA_DICTIONARY: Record<string, MessageDefinition> = {
     description: '測位された緯度・経度と時刻のみを含むシンプルな電文です。',
   },
   TXT: {
-    type: 'TXT',
+    displayName: 'TXT',
     titleJa: '受信機システム通知テキスト',
     category: 'system',
     categoryJa: 'システム',
@@ -219,9 +219,9 @@ export const NMEA_DICTIONARY: Record<string, MessageDefinition> = {
 // ==========================================
 // 2. UBX (u-blox Binary Protocol) 辞書
 // ==========================================
-export const UBX_DICTIONARY: Record<string, MessageDefinition> = {
+const UBX_SEEDS: Record<string, MessageDefinitionSeed> = {
   PVT: {
-    type: 'PVT (UBX-NAV-PVT)',
+    displayName: 'PVT (UBX-NAV-PVT)',
     titleJa: 'UBX高精度 航法測位・速度解',
     category: 'position',
     categoryJa: 'UBX測位解',
@@ -237,7 +237,7 @@ export const UBX_DICTIONARY: Record<string, MessageDefinition> = {
     ],
   },
   QZSSL6: {
-    type: 'QZSSL6 (UBX-RXM-QZSSL6)',
+    displayName: 'QZSSL6 (UBX-RXM-QZSSL6)',
     titleJa: 'みちびき CLAS / L6 補正フレーム',
     category: 'clas',
     categoryJa: 'CLAS補正',
@@ -250,7 +250,7 @@ export const UBX_DICTIONARY: Record<string, MessageDefinition> = {
     ],
   },
   'CFG-VALGET': {
-    type: 'CFG-VALGET',
+    displayName: 'CFG-VALGET',
     titleJa: 'UBX 設定値照会応答',
     category: 'system',
     categoryJa: '設定・制御',
@@ -258,7 +258,7 @@ export const UBX_DICTIONARY: Record<string, MessageDefinition> = {
     description: '受信機に対して要求した設定項目（ボーレート、メッセージ出力頻度、CLAS/RTK設定など）の現在の設定値を返します。',
   },
   'ACK-ACK': {
-    type: 'ACK-ACK',
+    displayName: 'ACK-ACK',
     titleJa: 'UBX コマンド受付完了 (Success)',
     category: 'system',
     categoryJa: '設定・制御',
@@ -266,7 +266,7 @@ export const UBX_DICTIONARY: Record<string, MessageDefinition> = {
     description: 'ホスト側から受信機へ送ったUBX-CFG設定コマンドが正しく解釈され、正常に適用されたことを示す肯定応答（ACK）です。',
   },
   'ACK-NAK': {
-    type: 'ACK-NAK',
+    displayName: 'ACK-NAK',
     titleJa: 'UBX コマンド拒否 (Error)',
     category: 'system',
     categoryJa: '設定・制御',
@@ -274,7 +274,7 @@ export const UBX_DICTIONARY: Record<string, MessageDefinition> = {
     description: '指定したキーやパラメータが無効、あるいは現在の動作モードで受け付けられない場合に受信機から返される否定応答（NAK）です。',
   },
   SIG: {
-    type: 'SIG (UBX-NAV-SIG)',
+    displayName: 'SIG (UBX-NAV-SIG)',
     titleJa: 'UBX 信号追跡詳細',
     category: 'satellite',
     categoryJa: '信号追跡',
@@ -282,7 +282,7 @@ export const UBX_DICTIONARY: Record<string, MessageDefinition> = {
     description: '受信機が現在追跡している全GNSS信号の周波数帯別ステータス、キャリア位相ロック状態、C/N0、疑似距離修正状況を伝えます。',
   },
   STATUS: {
-    type: 'STATUS (UBX-NAV-STATUS)',
+    displayName: 'STATUS (UBX-NAV-STATUS)',
     titleJa: 'UBX 測位状態フラグ',
     category: 'position',
     categoryJa: 'UBX測位解',
@@ -294,9 +294,9 @@ export const UBX_DICTIONARY: Record<string, MessageDefinition> = {
 // ==========================================
 // 3. RTCM 3.x 辞書 (ネットワークRTK)
 // ==========================================
-export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
+const RTCM_SEEDS: Record<string, MessageDefinitionSeed> = {
   RTCM1005: {
-    type: 'RTCM 1005',
+    displayName: 'RTCM 1005',
     titleJa: 'RTK 基準局アンテナ座標 (ARP)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -304,7 +304,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: 'ネットワークRTKの配信基準局（アンテナ参照点: ARP）のミリメートル単位の高精度な3次元直交座標（ITRF/WGS84）です。移動局（Rover）はこの座標を原点として相対測位を行います。',
   },
   RTCM1006: {
-    type: 'RTCM 1006',
+    displayName: 'RTCM 1006',
     titleJa: 'RTK 基準局アンテナ座標＋アンテナ高',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -312,7 +312,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: 'RTCM 1005の内容に加え、地上基準点からアンテナ位相中心までの設置高を含めた電文です。',
   },
   RTCM1074: {
-    type: 'RTCM 1074',
+    displayName: 'RTCM 1074',
     titleJa: 'GPS 観測データ (MSM4)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -320,7 +320,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: 'GPS衛星群のマルチシグナル観測データ（MSM4形式）です。RTK測位の整数値バイアス決定に必要な搬送波位相データを提供します。',
   },
   RTCM1077: {
-    type: 'RTCM 1077',
+    displayName: 'RTCM 1077',
     titleJa: 'GPS 高精度観測データ (MSM7)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -328,7 +328,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: 'GPS衛星群の最高精度拡張観測データ（MSM7形式）です。ミリメートル級の位相分解能と高レートなドップラー情報を含み、高速なRTK Fixに最適です。',
   },
   RTCM1084: {
-    type: 'RTCM 1084',
+    displayName: 'RTCM 1084',
     titleJa: 'GLONASS 観測データ (MSM4)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -336,7 +336,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: 'GLONASS衛星群の擬似距離およびキャリア位相観測情報です。',
   },
   RTCM1087: {
-    type: 'RTCM 1087',
+    displayName: 'RTCM 1087',
     titleJa: 'GLONASS 高精度観測データ (MSM7)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -344,7 +344,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: 'GLONASS衛星群の最高分解能マルチシグナル観測データです。',
   },
   RTCM1094: {
-    type: 'RTCM 1094',
+    displayName: 'RTCM 1094',
     titleJa: 'Galileo 観測データ (MSM4)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -352,7 +352,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: '欧州Galileo衛星群の擬似距離およびキャリア位相観測情報です。',
   },
   RTCM1097: {
-    type: 'RTCM 1097',
+    displayName: 'RTCM 1097',
     titleJa: 'Galileo 高精度観測データ (MSM7)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -360,7 +360,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: '欧州Galileo衛星群の最高分解能マルチシグナル観測データです。',
   },
   RTCM1114: {
-    type: 'RTCM 1114',
+    displayName: 'RTCM 1114',
     titleJa: 'QZSS (みちびき) 観測データ (MSM4)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -368,7 +368,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: '日本上空の準天頂衛星（QZSS）の観測情報です。ビル街や山間部でのRTK可用性を高めます。',
   },
   RTCM1117: {
-    type: 'RTCM 1117',
+    displayName: 'RTCM 1117',
     titleJa: 'QZSS (みちびき) 高精度観測データ (MSM7)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -376,7 +376,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: '準天頂衛星「みちびき」の高精度拡張観測データです。',
   },
   RTCM1124: {
-    type: 'RTCM 1124',
+    displayName: 'RTCM 1124',
     titleJa: 'BeiDou 観測データ (MSM4)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -384,7 +384,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: '中国BeiDou衛星群の擬似距離およびキャリア位相観測情報です。',
   },
   RTCM1127: {
-    type: 'RTCM 1127',
+    displayName: 'RTCM 1127',
     titleJa: 'BeiDou 高精度観測データ (MSM7)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -392,7 +392,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: '中国BeiDou衛星群の最高分解能マルチシグナル観測データです。',
   },
   RTCM1033: {
-    type: 'RTCM 1033',
+    displayName: 'RTCM 1033',
     titleJa: '基準局・アンテナ記述子 (Descriptor)',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -400,7 +400,7 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
     description: '基準局で使用されているアンテナの型式（位相中心校正値の適用に必要）や受信機の機種情報を提供します。',
   },
   RTCM1230: {
-    type: 'RTCM 1230',
+    displayName: 'RTCM 1230',
     titleJa: 'GLONASS コード・位相バイアス',
     category: 'rtk',
     categoryJa: 'RTK補正',
@@ -410,92 +410,81 @@ export const RTCM_DICTIONARY: Record<string, MessageDefinition> = {
 };
 
 // ==========================================
-// 4. メッセージ解説取得ヘルパー関数
+// 4. 辞書の組み立て
 // ==========================================
 
-export function getMessageDefinition(type: string): MessageDefinition {
-  // NMEA
-  if (NMEA_DICTIONARY[type]) {
-    return NMEA_DICTIONARY[type];
-  }
+export const NMEA_DICTIONARY = buildDictionary(NMEA_SEEDS);
+export const UBX_DICTIONARY = buildDictionary(UBX_SEEDS);
+export const RTCM_DICTIONARY = buildDictionary(RTCM_SEEDS);
 
-  // UBX
-  if (UBX_DICTIONARY[type]) {
-    return UBX_DICTIONARY[type];
-  }
+// ==========================================
+// 5. メッセージ解説取得ヘルパー関数
+// ==========================================
 
-  // RTCM
-  if (RTCM_DICTIONARY[type]) {
-    return RTCM_DICTIONARY[type];
-  }
+/**
+ * RTCM MSM（Multiple Signal Message）の番号帯と衛星系の対応。
+ * 各系統は 1071 起点で 7 種（MSM1〜MSM7）の連番を持つ。
+ */
+const RTCM_MSM_RANGES: { start: number; nameJa: string; description: string }[] = [
+  { start: 1071, nameJa: 'GPS', description: 'GPS衛星群のコード擬似距離・キャリア位相観測情報です。' },
+  { start: 1081, nameJa: 'GLONASS', description: 'GLONASS衛星群の観測情報です。' },
+  { start: 1091, nameJa: 'Galileo', description: 'Galileo衛星群の観測情報です。' },
+  { start: 1111, nameJa: 'QZSS (みちびき)', description: '準天頂衛星みちびきの観測情報です。' },
+  { start: 1121, nameJa: 'BeiDou', description: 'BeiDou衛星群の観測情報です。' },
+];
 
-  // RTCM汎用マッチ (例: RTCM1075)
-  if (type.startsWith('RTCM')) {
-    const numStr = type.replace('RTCM', '');
-    const num = Number(numStr);
-    if (num >= 1071 && num <= 1077) {
-      return {
-        type,
-        titleJa: `GPS 観測データ (${type})`,
-        category: 'rtk',
-        categoryJa: 'RTK補正',
-        summary: `GPS衛星群の観測データ (MSM${num % 10})`,
-        description: 'GPS衛星群のコード擬似距離・キャリア位相観測情報です。',
-      };
-    }
-    if (num >= 1081 && num <= 1087) {
-      return {
-        type,
-        titleJa: `GLONASS 観測データ (${type})`,
-        category: 'rtk',
-        categoryJa: 'RTK補正',
-        summary: `GLONASS衛星群の観測データ (MSM${num % 10})`,
-        description: 'GLONASS衛星群の観測情報です。',
-      };
-    }
-    if (num >= 1091 && num <= 1097) {
-      return {
-        type,
-        titleJa: `Galileo 観測データ (${type})`,
-        category: 'rtk',
-        categoryJa: 'RTK補正',
-        summary: `Galileo衛星群の観測データ (MSM${num % 10})`,
-        description: 'Galileo衛星群の観測情報です。',
-      };
-    }
-    if (num >= 1111 && num <= 1117) {
-      return {
-        type,
-        titleJa: `QZSS (みちびき) 観測データ (${type})`,
-        category: 'rtk',
-        categoryJa: 'RTK補正',
-        summary: `みちびき衛星群の観測データ (MSM${num % 10})`,
-        description: '準天頂衛星みちびきの観測情報です。',
-      };
-    }
-    if (num >= 1121 && num <= 1127) {
-      return {
-        type,
-        titleJa: `BeiDou 観測データ (${type})`,
-        category: 'rtk',
-        categoryJa: 'RTK補正',
-        summary: `BeiDou衛星群の観測データ (MSM${num % 10})`,
-        description: 'BeiDou衛星群の観測情報です。',
-      };
-    }
-    return {
-      type,
-      titleJa: `RTCM3 補正データ (${type})`,
-      category: 'rtk',
-      categoryJa: 'RTK補正',
-      summary: `RTCM3 補正メッセージ (ID ${numStr || '不明'})`,
-      description: 'ネットワークRTKで受信された基準局からのバイナリ補正メッセージです。',
-    };
-  }
+/** MSM 番号帯 1 つあたりのメッセージ数（MSM1〜MSM7） */
+const RTCM_MSM_SPAN = 7;
 
-  // デフォルト（未知のメッセージ）
+/** RTCM の電文番号から、辞書に無い MSM メッセージの解説を生成する */
+function buildRtcmMsmDefinition(type: string, messageNumber: number): MessageDefinition | null {
+  const range = RTCM_MSM_RANGES.find(
+    (candidate) => messageNumber >= candidate.start && messageNumber < candidate.start + RTCM_MSM_SPAN,
+  );
+  if (!range) return null;
+
+  const msmLevel = messageNumber - range.start + 1;
   return {
     type,
+    displayName: type,
+    titleJa: `${range.nameJa} 観測データ (${type})`,
+    category: 'rtk',
+    categoryJa: 'RTK補正',
+    summary: `${range.nameJa}衛星群の観測データ (MSM${msmLevel})`,
+    description: range.description,
+  };
+}
+
+/** 辞書に登録の無い RTCM 電文に対する汎用解説 */
+function buildGenericRtcmDefinition(type: string, rawNumber: string): MessageDefinition {
+  return {
+    type,
+    displayName: type,
+    titleJa: `RTCM3 補正データ (${type})`,
+    category: 'rtk',
+    categoryJa: 'RTK補正',
+    summary: `RTCM3 補正メッセージ (ID ${rawNumber || '不明'})`,
+    description: 'ネットワークRTKで受信された基準局からのバイナリ補正メッセージです。',
+  };
+}
+
+/**
+ * 電文種別から解説定義を引く。
+ * 個別辞書 → RTCM の MSM 番号帯 → 汎用 RTCM → 未知電文、の順にフォールバックする。
+ */
+export function getMessageDefinition(type: string): MessageDefinition {
+  const known = NMEA_DICTIONARY[type] ?? UBX_DICTIONARY[type] ?? RTCM_DICTIONARY[type];
+  if (known) return known;
+
+  if (type.startsWith('RTCM')) {
+    const rawNumber = type.slice('RTCM'.length);
+    const messageNumber = Number(rawNumber);
+    return buildRtcmMsmDefinition(type, messageNumber) ?? buildGenericRtcmDefinition(type, rawNumber);
+  }
+
+  return {
+    type,
+    displayName: type,
     titleJa: `${type} 電文`,
     category: 'other',
     categoryJa: 'その他',
@@ -504,59 +493,6 @@ export function getMessageDefinition(type: string): MessageDefinition {
   };
 }
 
-/**
- * NMEAセンテンスの生文字列から、人間が直感的に読める日本語の要約テキストを生成
- */
-export function formatNmeaSummary(type: string, rawLine: string): string {
-  const parts = rawLine.replace(/\*[0-9A-Fa-f]{2}$/, '').split(',');
-  switch (type) {
-    case 'GGA': {
-      const q = parts[6];
-      const qText = q === '4' ? '高精度Fix' : q === '5' ? '高精度Float' : q === '1' ? '単独測位' : q === '2' ? 'DGPS' : '未測位';
-      const svs = parts[7] ? `${parts[7]}機` : '';
-      const hdop = parts[8] ? `HDOP ${parts[8]}` : '';
-      const alt = parts[9] ? `標高 ${parts[9]}m` : '';
-      return [qText, svs, hdop, alt].filter(Boolean).join(' · ');
-    }
-    case 'RMC': {
-      const status = parts[2] === 'A' ? '有効' : '無効';
-      const speedKnots = Number(parts[7]);
-      const speedKmh = Number.isFinite(speedKnots) ? `${(speedKnots * 1.852).toFixed(1)} km/h` : '';
-      const course = parts[8] ? `方位 ${Number(parts[8]).toFixed(1)}°` : '';
-      return [`状態: ${status}`, speedKmh, course].filter(Boolean).join(' · ');
-    }
-    case 'GSA': {
-      const mode = parts[2] === '3' ? '3D測位' : parts[2] === '2' ? '2D測位' : '未測位';
-      const pdop = parts[15] ? `PDOP ${parts[15]}` : '';
-      return [`モード: ${mode}`, pdop].filter(Boolean).join(' · ');
-    }
-    case 'GSV': {
-      const talker = parts[0]?.slice(1, 3) || 'GN';
-      const talkerName = talker === 'GP' ? 'GPS' : talker === 'GL' ? 'GLONASS' : talker === 'GA' ? 'Galileo' : talker === 'GQ' || talker === 'QZ' ? 'みちびき(QZSS)' : talker === 'GB' || talker === 'BD' ? 'BeiDou' : 'GNSS';
-      const totalSvs = parts[3] ? `可視 ${parts[3]}機` : '';
-      const msgNum = parts[2] && parts[1] ? `(${parts[2]}/${parts[1]})` : '';
-      return [`${talkerName} ${totalSvs} ${msgNum}`].filter(Boolean).join(' · ');
-    }
-    case 'GST': {
-      const latSigma = parts[6] ? `緯度±${Number(parts[6]).toFixed(3)}m` : '';
-      const lonSigma = parts[7] ? `経度±${Number(parts[7]).toFixed(3)}m` : '';
-      const altSigma = parts[8] ? `高度±${Number(parts[8]).toFixed(3)}m` : '';
-      return [latSigma, lonSigma, altSigma].filter(Boolean).join(' · ');
-    }
-    case 'VTG': {
-      const course = parts[1] ? `進行方位 ${parts[1]}°` : '';
-      const kmh = parts[7] ? `${parts[7]} km/h` : '';
-      return [course, kmh].filter(Boolean).join(' · ');
-    }
-    case 'ZDA': {
-      const time = parts[1] ? `${parts[1].slice(0, 2)}:${parts[1].slice(2, 4)}:${parts[1].slice(4, 6)} UTC` : '';
-      const date = parts[4] && parts[3] && parts[2] ? `${parts[4]}-${parts[3]}-${parts[2]}` : '';
-      return [date, time].filter(Boolean).join(' ');
-    }
-    default:
-      return '';
-  }
-}
 
 /**
  * 全辞書エントリーをカテゴリ別に整理して返す（リファレンスモーダル用）

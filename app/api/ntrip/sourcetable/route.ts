@@ -1,115 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as net from 'net';
+import { DEFAULT_NTRIP_HOST, DEFAULT_NTRIP_PORT, parseSourceTable } from '@/app/lib/ntrip';
+import { buildSourceTableRequest } from '@/app/lib/ntripHeader';
+import { NtripRequestError, toNtripErrorResponse } from '@/app/lib/server/apiError';
+import { openCasterSocket } from '@/app/lib/server/casterSocket';
+import { isValidPort, resolveSafeTarget } from '@/app/lib/server/hostGuard';
 
-export type MountpointRecord = {
-  mountpoint: string;
-  identifier: string;
-  format: string;
-  formatDetails: string;
-  carrier: number;
-  navSystem: string;
-  network: string;
-  country: string;
-  latitude: number | null;
-  longitude: number | null;
-  nmea: boolean;
-  solution: number;
-  generator: string;
-  authentication: string;
-  fee: boolean;
-  bitrate: number;
-};
+/** net モジュールを使うため Node.js ランタイムを明示する */
+export const runtime = 'nodejs';
 
-function parseSourceTable(rawText: string): MountpointRecord[] {
-  const lines = rawText.split(/\r?\n/);
-  const records: MountpointRecord[] = [];
+/** Source-table 取得のタイムアウト（ms） */
+const SOURCE_TABLE_TIMEOUT_MS = 8000;
+/** 受信を打ち切る上限。巨大な Source-table でメモリを食い潰さないための安全弁 */
+const MAX_SOURCE_TABLE_BYTES = 4 * 1024 * 1024;
 
-  for (const line of lines) {
-    if (!line.startsWith('STR;')) continue;
-    const parts = line.split(';');
-    if (parts.length < 12) continue;
+/**
+ * NTRIP Caster へ接続して Source-table 本文を取得する。
+ *
+ * 上限判定を実バイト数で行うため、受信中は Buffer のまま溜め、
+ * 最後にまとめて UTF-8 として解釈する（文字数で数えるとマルチバイト分だけ上限が緩む）。
+ */
+function fetchSourceTable(address: string, host: string, port: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let receivedBytes = 0;
 
-    const latRaw = parseFloat(parts[9] || '');
-    const lonRaw = parseFloat(parts[10] || '');
-
-    const record: MountpointRecord = {
-      mountpoint: parts[1] || '',
-      identifier: parts[2] || '',
-      format: parts[3] || '',
-      formatDetails: parts[4] || '',
-      carrier: parseInt(parts[5] || '0', 10) || 0,
-      navSystem: parts[6] || '',
-      network: parts[7] || '',
-      country: parts[8] || '',
-      latitude: Number.isFinite(latRaw) ? latRaw : null,
-      longitude: Number.isFinite(lonRaw) ? lonRaw : null,
-      nmea: parts[11] === '1',
-      solution: parseInt(parts[12] || '0', 10) || 0,
-      generator: parts[13] || '',
-      authentication: parts[15] || 'N',
-      fee: parts[16] === 'Y',
-      bitrate: parseInt(parts[17] || '0', 10) || 0,
-    };
-
-    if (record.mountpoint) {
-      records.push(record);
-    }
-  }
-
-  return records;
+    openCasterSocket({
+      address,
+      port,
+      request: buildSourceTableRequest(host),
+      timeoutMs: SOURCE_TABLE_TIMEOUT_MS,
+      timeoutMessage: 'NTRIP Casterへの接続がタイムアウトしました。',
+      onData: (chunk) => {
+        receivedBytes += chunk.byteLength;
+        if (receivedBytes > MAX_SOURCE_TABLE_BYTES) {
+          // 例外を投げると受信が打ち切られ、そのまま onFailure へ渡る
+          throw new NtripRequestError('配信局一覧が大きすぎるため受信を中止しました。');
+        }
+        chunks.push(chunk);
+      },
+      onEnd: () => resolve(Buffer.concat(chunks).toString('utf8')),
+      onFailure: reject,
+    });
+  });
 }
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const host = searchParams.get('host') || 'rtk2go.com';
-  const port = parseInt(searchParams.get('port') || '2101', 10);
+  const host = searchParams.get('host') || DEFAULT_NTRIP_HOST;
+  const port = Number.parseInt(searchParams.get('port') || String(DEFAULT_NTRIP_PORT), 10);
 
-  if (!host || isNaN(port) || port < 1 || port > 65535) {
-    return NextResponse.json({ error: '無効なホスト名またはポート番号です。' }, { status: 400 });
+  if (!isValidPort(port)) {
+    return NextResponse.json({ error: '無効なポート番号です。' }, { status: 400 });
   }
 
   try {
-    const rawData = await new Promise<string>((resolve, reject) => {
-      let buffer = '';
-      const socket = net.createConnection({ host, port }, () => {
-        const req = `GET / HTTP/1.0\r\nUser-Agent: TakionCLAS-RTK-WebMonitor/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n`;
-        socket.write(req);
-      });
-
-      socket.setTimeout(8000);
-      socket.setEncoding('utf8');
-
-      socket.on('data', (chunk) => {
-        buffer += chunk;
-      });
-
-      socket.on('end', () => {
-        resolve(buffer);
-      });
-
-      socket.on('timeout', () => {
-        socket.destroy();
-        reject(new Error('NTRIP Casterへの接続がタイムアウトしました。'));
-      });
-
-      socket.on('error', (err) => {
-        reject(err);
-      });
-    });
-
+    const target = await resolveSafeTarget(host);
+    const rawData = await fetchSourceTable(target.address, host, port);
     const records = parseSourceTable(rawData);
-    return NextResponse.json({
-      host,
-      port,
-      count: records.length,
-      records,
-    });
+    return NextResponse.json({ host, port, count: records.length, records });
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Source-tableの取得に失敗しました。',
-      },
-      { status: 502 }
-    );
+    return toNtripErrorResponse(error, 'Source-tableの取得に失敗しました。');
   }
 }
