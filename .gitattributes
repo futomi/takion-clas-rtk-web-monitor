@@ -1,0 +1,16 @@
+# 改行コードはリポジトリ内でも作業ツリーでも LF に統一する。
+#
+# Git for Windows は既定で core.autocrlf=true のため、これを書かないと
+# チェックアウト時の改行が各自の設定次第になり、作業ツリーの改行が混在する。
+# 中身を変えていないファイルが差分に出たり、エディタや差分ツールの設定によって
+# 無関係な行まで書き換わったりする原因になるので、リポジトリ側で固定しておく。
+* text=auto eol=lf
+
+# 画像・フォントは改行変換の対象外。変換されると壊れる。
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.webp  binary
+*.woff  binary
+*.woff2 binary
