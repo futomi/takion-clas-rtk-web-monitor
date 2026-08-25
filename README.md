@@ -2,7 +2,7 @@
 
 高精度測位モジュール「[TakionCM001](https://store.shopping.yahoo.co.jp/tamaki-syouji/takion2022-001.html)」専用の、ブラウザ完結型高精度測位モニターアプリケーションです。
 
-![TakionCM001](docs/images/takioncm001.jpg)
+<img src="docs/images/takioncm001.jpg" alt="TakionCM001" width="450" />
 
 Google Chrome などの **Web Serial API** 対応ブラウザから直接USBシリアルポートを開き、測位状況（CLAS / ネットワークRTK / 単独測位）や NMEA / UBX / RTCM 電文の解析ログをリアルタイムに表示します。
 
