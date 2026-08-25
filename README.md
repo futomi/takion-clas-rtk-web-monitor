@@ -162,3 +162,11 @@ NTRIP の接続設定（Caster、ポート、マウントポイント、ユー�
 localStorage に保存されますが、**パスワードは保存されません**。localStorage は同一
 オリジンの任意のスクリプトから平文で読み出せるため、認証情報の保存先として適さないためです。
 また、認証情報は API へ POST のボディで送信し、URL に含めないようにしています。
+
+
+## ライセンス
+
+このリポジトリのソースコードは [MIT License](LICENSE) で公開しています。
+
+なお、依存パッケージ（Next.js、React、MapLibre GL JS など）はそれぞれ独自のライセンスに従います。
+`docs/images/` の製品写真は TakionCM001 の紹介用素材であり、MIT License の対象には含みません。
