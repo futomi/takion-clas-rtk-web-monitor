@@ -50,14 +50,3 @@ npm run dev
 ```
 起動後、Web Serial API に対応したブラウザ（Google Chrome / Microsoft Edge 等）で [http://localhost:3000](http://localhost:3000) を開きます。
 
----
-
-## ディレクトリ構成
-
-- `app/` - Next.js App Router (UI コンポーネントおよび API ルート)
-  - `page.tsx` - エントリーポイント
-  - `MonitorClient.tsx` - メインUI & Web Serial 通信 / NTRIP 制御
-  - `MapPanel.tsx` - 地図描画パネル (MapLibre GL)
-  - `lib/gnssMessages.ts` - NMEA / UBX / RTCM 解析および解説辞書
-  - `api/ntrip/` - NTRIP Sourcetable 取得 & RTCM ストリーミングプロキシ
-- `public/` - 静的アセット (ファビコン, OGP画像)
