@@ -1,11 +1,18 @@
 'use client';
 
-import mapboxgl, { type GeoJSONSource, type Map as MapboxMap, type Marker } from 'mapbox-gl';
+import type { FeatureCollection, Polygon } from 'geojson';
+import {
+  AttributionControl,
+  type GeoJSONSource,
+  Map as MapLibreMap,
+  Marker,
+  NavigationControl,
+  ScaleControl,
+  type StyleSpecification,
+} from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 
 type MapPanelProps = {
-  accessToken: string;
-  tokenError?: string;
   latitude?: number;
   longitude?: number;
   horizontalError?: number;
@@ -13,10 +20,33 @@ type MapPanelProps = {
   qualityTone: string;
 };
 
-type PositionFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon>;
+type PositionFeatureCollection = FeatureCollection<Polygon>;
 
 const JAPAN_CENTER: [number, number] = [138.2, 36.2];
 const ACCURACY_SOURCE_ID = 'position-accuracy';
+
+const OSM_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    'osm-tiles': {
+      type: 'raster',
+      tiles: [
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      ],
+      tileSize: 256,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+      maxzoom: 19,
+    },
+  },
+  layers: [
+    {
+      id: 'osm-tiles-layer',
+      type: 'raster',
+      source: 'osm-tiles',
+      minzoom: 0,
+    },
+  ],
+};
 
 function createAccuracyCircle(longitude: number, latitude: number, radiusMeters: number): PositionFeatureCollection {
   const pointCount = 64;
@@ -60,8 +90,6 @@ function createMarkerElement() {
 }
 
 export default function MapPanel({
-  accessToken,
-  tokenError,
   latitude,
   longitude,
   horizontalError,
@@ -69,42 +97,61 @@ export default function MapPanel({
   qualityTone,
 }: MapPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<MapboxMap | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<Marker | null>(null);
   const markerElementRef = useRef<HTMLDivElement | null>(null);
   const centeredOnFirstFixRef = useRef(false);
-  const positionRef = useRef({ latitude, longitude });
+  const errorTimerRef = useRef<number | null>(null);
   const [following, setFollowing] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState('');
 
-  positionRef.current = { latitude, longitude };
+  const clearMapError = () => {
+    if (errorTimerRef.current !== null) {
+      window.clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+    setMapError('');
+  };
+
+  const showTemporaryError = (message: string) => {
+    if (errorTimerRef.current !== null) {
+      window.clearTimeout(errorTimerRef.current);
+    }
+    setMapError(message);
+    errorTimerRef.current = window.setTimeout(() => {
+      setMapError('');
+      errorTimerRef.current = null;
+    }, 4000);
+  };
 
   useEffect(() => {
-    if (!accessToken || !containerRef.current || mapRef.current) return;
+    if (!containerRef.current || mapRef.current) return;
 
-    mapboxgl.accessToken = accessToken;
-    const map = new mapboxgl.Map({
+    const map = new MapLibreMap({
       container: containerRef.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
+      style: OSM_STYLE,
       center: JAPAN_CENTER,
       zoom: 4.4,
+      minZoom: 2,
+      maxZoom: 19,
       attributionControl: false,
       cooperativeGestures: true,
     });
     mapRef.current = map;
 
-    map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
-    map.addControl(new mapboxgl.ScaleControl({ maxWidth: 110, unit: 'metric' }), 'bottom-left');
+    map.addControl(new AttributionControl({ compact: true }), 'bottom-right');
+    map.addControl(new NavigationControl({ showCompass: true }), 'bottom-right');
+    map.addControl(new ScaleControl({ maxWidth: 110, unit: 'metric' }), 'bottom-left');
 
     const stopFollowing = () => setFollowing(false);
     map.on('dragstart', stopFollowing);
     map.on('rotatestart', stopFollowing);
     map.on('pitchstart', stopFollowing);
+    map.on('zoomstart', clearMapError);
     map.on('error', (event) => {
       if (event.error?.message) {
-        setMapError('地図を読み込めませんでした。Mapboxのトークンと許可URLを確認してください。');
+        showTemporaryError('地図タイルの読み込みに失敗しました。ネットワーク接続を確認してください。');
       }
     });
 
@@ -128,7 +175,7 @@ export default function MapPanel({
 
       const markerElement = createMarkerElement();
       markerElementRef.current = markerElement;
-      markerRef.current = new mapboxgl.Marker({
+      markerRef.current = new Marker({
         element: markerElement,
         anchor: 'center',
         rotationAlignment: 'map',
@@ -138,12 +185,13 @@ export default function MapPanel({
     });
 
     return () => {
+      clearMapError();
       map.remove();
       mapRef.current = null;
       markerRef.current = null;
       markerElementRef.current = null;
     };
-  }, [accessToken]);
+  }, []);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -155,7 +203,7 @@ export default function MapPanel({
     marker.setRotation(course ?? 0);
 
     if (markerElementRef.current) {
-      markerElementRef.current.className = `map-position-marker ${qualityTone}`;
+      markerElementRef.current.className = `map-position-marker ${qualityTone} ${course !== undefined ? 'has-heading' : 'no-heading'}`;
     }
 
     const source = map.getSource(ACCURACY_SOURCE_ID) as GeoJSONSource | undefined;
@@ -178,30 +226,21 @@ export default function MapPanel({
   const resumeFollowing = () => {
     setFollowing(true);
     const map = mapRef.current;
-    const current = positionRef.current;
-    if (map && current.latitude !== undefined && current.longitude !== undefined) {
-      map.easeTo({ center: [current.longitude, current.latitude], zoom: Math.max(map.getZoom(), 16), duration: 600, essential: true });
+    if (map && latitude !== undefined && longitude !== undefined) {
+      map.easeTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), 16), duration: 600, essential: true });
     }
   };
-
-  const configurationMessage = tokenError ?? (!accessToken
-    ? 'Mapboxアクセストークンが設定されていません。'
-    : '');
-
-  if (configurationMessage) {
-    return (
-      <div className="map-configuration" role="status">
-        <span className="map-configuration-mark" aria-hidden="true" />
-        <div><strong>地図を表示できません</strong><p>{configurationMessage}</p></div>
-      </div>
-    );
-  }
 
   return (
     <div className="map-canvas-wrap">
       <div ref={containerRef} className="map-canvas" />
       {!mapLoaded && <div className="map-loading">地図を読み込んでいます…</div>}
-      {mapError && <div className="map-error" role="alert">{mapError}</div>}
+      {mapError && (
+        <div className="map-error" role="alert">
+          <span>{mapError}</span>
+          <button type="button" className="map-error-close" onClick={clearMapError} aria-label="エラーを閉じる">×</button>
+        </div>
+      )}
       {mapLoaded && latitude === undefined && longitude === undefined && (
         <div className="map-waiting"><span className="status-dot" />測位データを待っています</div>
       )}
