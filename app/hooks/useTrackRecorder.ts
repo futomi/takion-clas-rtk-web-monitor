@@ -146,10 +146,16 @@ export function useTrackRecorder(telemetry: Telemetry) {
   // 記録開始の直後にも走るため、開始時点の位置がそのまま最初の点になる
   useEffect(() => {
     if (status !== 'recording') return;
-    const candidate = toTrackPoint(telemetry, telemetry.lastReceivedAt ?? Date.now());
-    if (!candidate) return;
 
+    const at = telemetry.lastReceivedAt ?? Date.now();
     const previous = pointsRef.current[pointsRef.current.length - 1];
+    // テレメトリは記録間隔よりずっと細かく更新されるため、ここへ来る大半は間隔を満たさない。
+    // 捨てるだけの点を組み立てないよう、経過時間だけで弾ける呼び出しを先に返す
+    // （下の shouldRecordPoint が false を返す条件の一部をそのまま前倒ししている）
+    if (previous && at >= previous.at && at - previous.at < intervalMs) return;
+
+    const candidate = toTrackPoint(telemetry, at);
+    if (!candidate) return;
     if (!shouldRecordPoint(previous, candidate, intervalMs)) return;
 
     if (pointsRef.current.length >= MAX_TRACK_POINTS) {
