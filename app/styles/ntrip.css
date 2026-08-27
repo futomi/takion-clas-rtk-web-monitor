@@ -18,7 +18,7 @@
   gap: var(--spacing-m);
 }
 .ntrip-panel-header h3 {
-  margin: var(--spacing-xxs) 0 0;
+  margin: 0;
   font-family: var(--font-family-display);
   font-size: var(--font-size-700);
   line-height: var(--line-height-700);
@@ -63,11 +63,17 @@
  * 列幅は minmax(0, …) で下限を切る。
  * fr の既定の下限は「中身の最小幅」なので、そのままだと入力欄と
  * 「局リスト更新」ボタンの合計がパネルの幅を押し広げてしまう。
+ *
+ * 重みは各欄が実際に要る幅へ比例させる。Caster 欄はホスト名・ポート・
+ * 「局リスト更新」の 3 つを抱えるぶん、いちばん厚く取らないとホスト名が潰れる。
+ *
+ * 揃えは start。ラベルを 1 行に固定してあるので、注記を持つ欄
+ * (パスワードなど) が混じっても入力欄の高さは列をまたいで揃う。
  */
 .ntrip-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(0, 1fr) auto;
-  align-items: end;
+  grid-template-columns: minmax(0, 2.1fr) minmax(0, 1.5fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: start;
   gap: var(--spacing-m);
 }
 .ntrip-field {
@@ -81,21 +87,11 @@
   line-height: var(--line-height-300);
   font-weight: var(--font-weight-semibold);
   color: var(--color-neutral-foreground-1);
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
+  /* 折り返させない。ラベルの行数が列ごとに違うと入力欄の高さが揃わなくなる */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.coords-hint {
-  font-size: var(--font-size-200);
-  line-height: var(--line-height-200);
-  color: var(--color-brand-foreground-1);
-  font-weight: var(--font-weight-medium);
-}
-.coords-hint.waiting {
-  color: var(--color-status-warning-foreground);
-}
-
 /*
  * Fluent 2 の Input / Dropdown。
  * 下辺だけを濃くしておき、フォーカスで 2px のブランド色へ太らせる。
@@ -149,25 +145,49 @@
   display: block;
   color: var(--color-status-danger-foreground);
 }
+/* 基準局を自動選定した根拠を示す注記。色だけ field-note から差し替える */
+.coords-hint {
+  color: var(--color-brand-foreground-1);
+  font-weight: var(--font-weight-medium);
+}
+.coords-hint.waiting {
+  color: var(--color-status-warning-foreground);
+}
+/*
+ * ホスト名・ポート・ボタンを 1 行に収める。
+ * 3 つが収まらない幅ではボタンから次の行へ送り、ホスト名欄が
+ * 数文字ぶんまで痩せるのを防ぐ。
+ */
 .input-group {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--spacing-s);
 }
 .input-group input {
-  flex: 1;
+  flex: 1 1 160px;
   min-width: 0;
 }
-/* ポート番号入力は桁数が少ないので固定幅にする */
-.port-input {
-  width: 96px;
+/*
+ * ポート番号は 5 桁で足りるので固定幅。
+ * flex-basis を 0 のままにすると、桁数に関係なくホスト名欄と
+ * 同じ幅まで広がってしまう。
+ */
+.input-group .port-input {
+  flex: 0 0 96px;
+}
+/* 添えもののボタンとリンクは痩せさせない */
+.input-group .secondary-btn,
+.input-group .text-link {
+  flex: 0 0 auto;
 }
 .mountpoint-select-wrapper {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--spacing-s);
 }
 .mountpoint-select-wrapper select {
-  flex: 1;
+  flex: 1 1 160px;
   min-width: 0;
 }
 

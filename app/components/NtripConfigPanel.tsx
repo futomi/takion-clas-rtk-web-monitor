@@ -72,10 +72,7 @@ export default function NtripConfigPanel({
   return (
     <section className="ntrip-config-panel panel" aria-label="NTRIP接続設定">
       <div className="ntrip-panel-header">
-        <div>
-          <p className="card-label">NTRIP CLIENT CONFIGURATION</p>
-          <h3>ネットワークRTK 接続設定</h3>
-        </div>
+        <h3>ネットワークRTK 接続設定</h3>
         <div className="ntrip-status-badge">
           <span className={`ntrip-led ${status}`} />
           <span>{statusText(status, rateKbps)}</span>
@@ -124,16 +121,7 @@ export default function NtripConfigPanel({
         </div>
 
         <div className="ntrip-field">
-          <label htmlFor="ntrip-mountpoint">
-            基準局 (マウントポイント)
-            {positioned ? (
-              <span className="coords-hint">
-                （🛰️ Takion位置基準: {telemetry.latitude?.toFixed(4)}, {telemetry.longitude?.toFixed(4)} から自動検出）
-              </span>
-            ) : (
-              <span className="coords-hint waiting">（⚠️ Takion測位データ待ち · 受信機が測位すると自動選定）</span>
-            )}
-          </label>
+          <label htmlFor="ntrip-mountpoint">基準局 (マウントポイント)</label>
 
           {form.isManualMountpoint ? (
             <div className="input-group">
@@ -181,6 +169,16 @@ export default function NtripConfigPanel({
                 手動入力
               </button>
             </div>
+          )}
+
+          {positioned ? (
+            <small className="field-note coords-hint">
+              🛰️ Takion位置基準: {telemetry.latitude?.toFixed(4)}, {telemetry.longitude?.toFixed(4)} から自動検出
+            </small>
+          ) : (
+            <small className="field-note coords-hint waiting">
+              ⚠️ Takion測位データ待ち · 受信機が測位すると自動選定
+            </small>
           )}
         </div>
 

@@ -17,9 +17,14 @@
   .fix-panel { grid-column: 1 / -1; }
 }
 
-@media (max-width: 1024px) {
+/*
+ * NTRIP 接続設定を 4 列で並べるのをやめる境目。
+ * 4 列を保てる下限は、Caster 欄がホスト名・ポート・「局リスト更新」を
+ * 1 行に並べられる 382px を確保できるところ。実測でここが境目になる。
+ */
+@media (max-width: 1200px) {
   .ntrip-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
@@ -28,7 +33,7 @@
   .app-shell { height: auto; min-height: 100dvh; overflow: visible; padding-inline: var(--spacing-l); }
   .device-toolbar { grid-template-columns: minmax(190px, 1fr) auto 120px; }
   .device-id { display: none; }
-  .ntrip-grid { grid-template-columns: 1fr; }
+  .ntrip-grid { grid-template-columns: minmax(0, 1fr); }
   .log-panel { min-height: 300px; }
   .terminal { height: 230px; flex: 0 0 auto; }
 }
