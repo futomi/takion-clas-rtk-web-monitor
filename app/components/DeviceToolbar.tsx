@@ -26,7 +26,7 @@ export default function DeviceToolbar({
   return (
     <section className="device-toolbar panel" aria-label="受信機への接続">
       <div className="device-heading">
-        <p className="card-label">USB SERIAL RECEIVER</p>
+        <p className="card-label">USBシリアル受信機</p>
         <div className="device-name">
           <h2>TakionCM001</h2>
           <span className={`api-badge ${isSupported ? 'supported' : 'unsupported'}`}>

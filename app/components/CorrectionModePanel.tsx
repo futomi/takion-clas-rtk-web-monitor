@@ -55,7 +55,7 @@ export default function CorrectionModePanel({
   return (
     <section className="correction-mode-panel panel" aria-label="補正モード選択">
       <div className="mode-header">
-        <span className="card-label">CORRECTION SOURCE</span>
+        <span className="card-label">補正ソース</span>
         <span className="mode-active-indicator">
           選択中: <strong>{activeModeLabel(mode, ntripStatus)}</strong>
         </span>
