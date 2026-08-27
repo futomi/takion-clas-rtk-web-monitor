@@ -118,21 +118,29 @@
   /* --- タイポグラフィ ------------------------------------------------- */
 
   /*
-   * Fluent 2 の標準書体は Segoe UI Variable。
-   * 日本語は Windows の UI 書体である Yu Gothic UI が Segoe UI と設計が揃うため、
-   * 欧文・和文の順に並べて字面の大きさを合わせる。
+   * Fluent 2 の標準書体は Segoe UI Variable。欧文はこれを最優先に置く。
+   *
+   * 和文は Fluent 2 に規定が無い（Microsoft は各言語の OS 標準 UI 書体に委ねる）。
+   * OS 任せにすると Windows=Yu Gothic UI / macOS=Hiragino Sans で字面が揃わず、
+   * さらに Yu Gothic UI は 500/600/700 が同じ太さに丸められて weight ランプが
+   * 2 段に潰れる。そこで和文だけ Noto Sans JP を配信し（app/layout.tsx で self-host）、
+   * 400/500/600/700 の 4 段をどの環境でも同じ見え方にする。
+   *
+   * 欧文フォントは和文グリフを持たないので、欧文・和文の順に並べるだけで
+   * 英数字は Segoe UI Variable、日本語は Noto Sans JP に振り分けられる。
    */
   --font-family-base:
     "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont,
-    "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+    var(--font-japanese, "Noto Sans JP"), "Yu Gothic UI", "Hiragino Sans",
+    system-ui, sans-serif;
   /* 見出し用。Segoe UI Variable は光学サイズ別に 3 種の実体を持つ */
   --font-family-display:
     "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI",
-    -apple-system, BlinkMacSystemFont, "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP",
-    system-ui, sans-serif;
+    -apple-system, BlinkMacSystemFont, var(--font-japanese, "Noto Sans JP"),
+    "Yu Gothic UI", "Hiragino Sans", system-ui, sans-serif;
   /* 数値・電文など、桁を縦に揃えたいものだけに使う */
   --font-family-monospace:
-    "Cascadia Mono", Consolas, ui-monospace, SFMono-Regular, Menlo,
+    Consolas, "Cascadia Mono", ui-monospace, SFMono-Regular, Menlo,
     "Liberation Mono", "Courier New", monospace;
 
   --font-weight-regular: 400;
