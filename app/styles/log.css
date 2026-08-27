@@ -210,6 +210,20 @@
   line-height: 1.45;
   transition: background-color var(--duration-faster) var(--curve-easy-ease);
   cursor: pointer;
+
+  /*
+   * 端末は最大 1000 行を抱え、そのほとんどはスクロール範囲の外に居る。
+   * 画面外の行のレイアウトと描画を省くことで、行が増えたときのコストを
+   * 「見えている数十行ぶん」に抑える。
+   *
+   * `contain-intrinsic-size` は必ず添える。高さの見積もりが無いと画面外の行が
+   * 高さ 0 に潰れ、`scrollHeight` を頼りに最新へ追従する useTerminalAutoScroll が
+   * 行き先を見失う。`auto` を前置しているのは、一度描いた行は実測値を覚えさせ、
+   * 表示モードで行の高さが変わっても見積もりがずれたままにならないようにするため
+   * （後続の 44px は、まだ一度も描いていない行に使う初期値）。
+   */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 44px;
 }
 .log-line:hover {
   background-color: rgba(255, 255, 255, .06);
