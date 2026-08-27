@@ -15,7 +15,7 @@ import { useTemporaryMessage } from '../hooks/useTemporaryMessage';
 import { MAP_ERROR_DURATION_MS } from '../lib/constants';
 import type { QualityTone } from '../lib/correctionSource';
 import { EMPTY_FEATURE_COLLECTION, createAccuracyCircle } from '../lib/geo';
-import { buildTrackFeatures, buildTrackStartFeature, type TrackPoint } from '../lib/track';
+import { buildTrackStartFeature, createTrackFeatureBuilder, type TrackPoint } from '../lib/track';
 
 type MapPanelProps = {
   latitude?: number;
@@ -33,6 +33,20 @@ const JAPAN_CENTER: [number, number] = [138.2, 36.2];
 const ACCURACY_SOURCE_ID = 'position-accuracy';
 const TRACK_SOURCE_ID = 'track-line';
 const TRACK_START_SOURCE_ID = 'track-start';
+
+/**
+ * 現在地へ追従するときのイージングの長さ（ms）。
+ *
+ * 測位が届く間隔より長い動きを指示すると、前の動きが終わらないうちに次が始まる。
+ * 地図は目的地へ着かないまま毎フレーム描き直され続け、しかも表示は常に実際の位置より
+ * 後ろを走ることになる。そこで、前回からの実測間隔をそのまま長さに使い、
+ * 次の測位が届くころに動きが終わるようにする。
+ *
+ * 上限は「測位が途切れた後の 1 歩」が飛ぶように見えないための長さ。
+ * 下限は、これを下回る間隔ならアニメーションを挟む意味が無いので即座に移す境目。
+ */
+const FOLLOW_EASE_MAX_MS = 450;
+const FOLLOW_EASE_MIN_MS = 120;
 
 /**
  * 軌跡の測位品質ごとの色。
@@ -103,6 +117,12 @@ export default function MapPanel({
   const markerRef = useRef<Marker | null>(null);
   const markerElementRef = useRef<HTMLDivElement | null>(null);
   const centeredOnFirstFixRef = useRef(false);
+  /** 前回、現在地へ追従した時刻。次の追従にかける長さを決めるのに使う */
+  const lastFollowAtRef = useRef(0);
+  /** 最後に描いた誤差円の中心と半径。同じ円を描き直さないための控え */
+  const lastAccuracyRef = useRef<{ longitude: number; latitude: number; radius: number } | null>(null);
+  /** 軌跡を増分で組み立てる。確定した区間は作り直さない */
+  const buildTrackRef = useRef(createTrackFeatureBuilder());
   const [following, setFollowing] = useState(true);
   const [mapLoaded, setMapLoaded] = useState(false);
   const {
@@ -222,15 +242,28 @@ export default function MapPanel({
     if (!marker.getElement().parentElement) marker.addTo(map);
     marker.setRotation(course ?? 0);
 
-    if (markerElementRef.current) {
-      markerElementRef.current.className = `map-position-marker ${qualityTone} ${course !== undefined ? 'has-heading' : 'no-heading'}`;
+    const markerElement = markerElementRef.current;
+    if (markerElement) {
+      // 同じ値の書き戻しでもスタイルの再計算は走るため、変わったときだけ触る
+      const className = `map-position-marker ${qualityTone} ${course !== undefined ? 'has-heading' : 'no-heading'}`;
+      if (markerElement.className !== className) markerElement.className = className;
     }
 
-    const source = map.getSource(ACCURACY_SOURCE_ID) as GeoJSONSource | undefined;
+    // 誤差円は 64 頂点のポリゴンを組み直して差し替えることになるので、
+    // 中心も半径も前回と同じなら描き直さない
     const radius = horizontalError !== undefined && horizontalError > 0 ? horizontalError : 0;
-    source?.setData(radius > 0
-      ? createAccuracyCircle(longitude, latitude, radius)
-      : EMPTY_FEATURE_COLLECTION);
+    const lastAccuracy = lastAccuracyRef.current;
+    if (
+      lastAccuracy === null
+      || lastAccuracy.longitude !== longitude
+      || lastAccuracy.latitude !== latitude
+      || lastAccuracy.radius !== radius
+    ) {
+      lastAccuracyRef.current = { longitude, latitude, radius };
+      (map.getSource(ACCURACY_SOURCE_ID) as GeoJSONSource | undefined)?.setData(radius > 0
+        ? createAccuracyCircle(longitude, latitude, radius)
+        : EMPTY_FEATURE_COLLECTION);
+    }
 
     if (!centeredOnFirstFixRef.current) {
       map.jumpTo({ center: [longitude, latitude], zoom: 17 });
@@ -239,7 +272,12 @@ export default function MapPanel({
     }
 
     if (following) {
-      map.easeTo({ center: [longitude, latitude], duration: 450, essential: true });
+      const now = performance.now();
+      const sinceLastFollow = now - lastFollowAtRef.current;
+      lastFollowAtRef.current = now;
+      const duration = Math.min(FOLLOW_EASE_MAX_MS, sinceLastFollow);
+      if (duration < FOLLOW_EASE_MIN_MS) map.setCenter([longitude, latitude]);
+      else map.easeTo({ center: [longitude, latitude], duration, essential: true });
     }
   }, [course, following, horizontalError, latitude, longitude, mapLoaded, qualityTone]);
 
@@ -267,7 +305,7 @@ export default function MapPanel({
   useEffect(() => {
     const map = mapRef.current;
     if (!mapLoaded || !map) return;
-    (map.getSource(TRACK_SOURCE_ID) as GeoJSONSource | undefined)?.setData(buildTrackFeatures(track));
+    (map.getSource(TRACK_SOURCE_ID) as GeoJSONSource | undefined)?.setData(buildTrackRef.current(track));
     (map.getSource(TRACK_START_SOURCE_ID) as GeoJSONSource | undefined)?.setData(buildTrackStartFeature(track));
   }, [mapLoaded, track]);
 
