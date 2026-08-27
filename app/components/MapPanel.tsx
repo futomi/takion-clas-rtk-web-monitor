@@ -25,6 +25,8 @@ type MapPanelProps = {
   qualityTone: QualityTone;
   /** 記録中の軌跡。空配列なら何も描かない */
   track: TrackPoint[];
+  /** 地図を画面いっぱいへ広げているか。操作方法の切り替えに使う */
+  isExpanded: boolean;
 };
 
 const JAPAN_CENTER: [number, number] = [138.2, 36.2];
@@ -93,6 +95,7 @@ export default function MapPanel({
   course,
   qualityTone,
   track,
+  isExpanded,
 }: MapPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -238,6 +241,24 @@ export default function MapPanel({
       map.easeTo({ center: [longitude, latitude], duration: 450, essential: true });
     }
   }, [course, following, horizontalError, latitude, longitude, mapLoaded, qualityTone]);
+
+  /*
+   * 全画面のときは Ctrl + ホイール（二本指）の強制を外す。
+   *
+   * この制限はページのスクロールを地図に横取りさせないためのもので、
+   * 地図が画面そのものになれば守るべきスクロールが無くなる。
+   * 残したままだと、拡大縮小のたびに修飾キーを要求されるだけになってしまう。
+   *
+   * 併せて大きさも取り直す。既定の trackResize でも追従するが、
+   * こちらは切り替えた直後の同じ描画で反映され、伸びた一瞬が出ない。
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapLoaded || !map) return;
+    if (isExpanded) map.cooperativeGestures.disable();
+    else map.cooperativeGestures.enable();
+    map.resize();
+  }, [isExpanded, mapLoaded]);
 
   // 軌跡の反映。点が積まれるのは記録間隔ごと（既定 1 秒）なので、
   // 配列の入れ替わりに合わせてそのまま描き直して差し支えない。

@@ -201,6 +201,7 @@ export default function MonitorClient() {
         telemetry={telemetry}
         activeSource={activeSource}
         quality={quality}
+        connection={connection}
         track={track}
         clock={clock}
       />

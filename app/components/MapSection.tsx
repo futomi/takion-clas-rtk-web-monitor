@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useMapExpansion } from '../hooks/useMapExpansion';
 import type { TrackRecorder } from '../hooks/useTrackRecorder';
 import type { ActiveSource, QualityDisplay } from '../lib/correctionSource';
 import { formatValue } from '../lib/format';
 import { hasPosition, type Telemetry } from '../lib/telemetry';
 import type { TrackPoint } from '../lib/track';
+import type { ConnectionState } from '../lib/types';
 import MapPanel from './MapPanel';
 import TrackControls from './TrackControls';
 import TrackNotice from './TrackNotice';
@@ -20,6 +22,7 @@ type MapSectionProps = {
   telemetry: Telemetry;
   activeSource: ActiveSource;
   quality: QualityDisplay;
+  connection: ConnectionState;
   track: TrackRecorder;
   clock: number;
 };
@@ -29,9 +32,13 @@ type MapSectionProps = {
  *
  * 軌跡を描くかどうかはここで決める。操作するのは見出しの中の記録操作、
  * 反映されるのは地図本体で、その両方を持つのがこの層だけのため。
+ *
+ * 全画面表示もここが持つ。広がるのはこのセクションそのもので、
+ * 中の見出しと地図の見せ方も一緒に変わるため。
  */
-export default function MapSection({ telemetry, activeSource, quality, track, clock }: MapSectionProps) {
+export default function MapSection({ telemetry, activeSource, quality, connection, track, clock }: MapSectionProps) {
   const positioned = hasPosition(telemetry);
+  const { isExpanded, panelRef, toggle } = useMapExpansion();
 
   /**
    * 「隠す」と指示された軌跡の始点時刻。隠していなければ null。
@@ -44,8 +51,16 @@ export default function MapSection({ telemetry, activeSource, quality, track, cl
   const trackStart = track.points.length > 0 ? track.points[0].at : null;
   const showTrack = trackStart === null || hiddenTrackStart !== trackStart;
 
+  // 接続を試みている最中は出さない。数秒で決着するものを警告として出すと、
+  // 毎回の接続でひととおり赤い帯が流れることになる
+  const isDetached = connection === 'idle' || connection === 'disconnecting';
+
   return (
-    <section className="map-panel panel" aria-label="現在地マップ">
+    <section
+      ref={panelRef}
+      className={`map-panel panel${isExpanded ? ' is-expanded' : ''}`}
+      aria-label="現在地マップ"
+    >
       <div className="map-panel-heading">
         <div className="map-panel-title">
           <h3>現在地マップ</h3>
@@ -57,7 +72,30 @@ export default function MapSection({ telemetry, activeSource, quality, track, cl
                 : '測位データ待ち'}
             </span>
           </div>
+
+          {/*
+            * 全画面では移動情報パネルも接続の状態も画面から消える。
+            * 動きながら見失うと困るものだけを、ここへ引き継ぐ。
+            */}
+          {isExpanded && (
+            <p className="map-hud-motion">
+              <span>{formatValue(telemetry.speedKmh, 1, ' km/h')}</span>
+              <span>{formatValue(telemetry.course, 1, '°')}</span>
+            </p>
+          )}
+          {isExpanded && isDetached && (
+            <p className="map-hud-alert" role="status">受信機が未接続です</p>
+          )}
         </div>
+
+        {/*
+          * 記録操作より前に置く。記録操作は右詰めなので、後ろに置くと
+          * 主ボタン（記録開始 / 停止）がパネルの右端から押し出されてしまう。
+          */}
+        <button type="button" className="map-expand-button" onClick={toggle}>
+          {isExpanded ? '全画面を解除' : '全画面'}
+        </button>
+
         <TrackControls
           track={track}
           clock={clock}
@@ -73,6 +111,7 @@ export default function MapSection({ telemetry, activeSource, quality, track, cl
         course={telemetry.course}
         qualityTone={quality.tone}
         track={showTrack ? track.points : NO_TRACK}
+        isExpanded={isExpanded}
       />
     </section>
   );

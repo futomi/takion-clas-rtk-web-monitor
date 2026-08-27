@@ -196,3 +196,102 @@
   .map-canvas-wrap { min-height: 230px; }
   .map-panel-heading { padding-inline: 11px; }
 }
+
+/*
+ * 全画面表示。
+ *
+ * 見出しを地図の上へ浮かせず、細い帯のまま上に残す。
+ * 地図はすでに四辺へ自前の要素（追従ボタン・エラー・スケール・ナビゲーション）を
+ * 出しており、そこへ見出しまで重ねると、画面が狭いときに必ずどれかとぶつかる。
+ * 帯に残せば地図の中は今までどおりの配置のままで済み、
+ * 押しどころが地図の上に乗らない利点もそのまま得られる。
+ */
+.map-panel.is-expanded {
+  position: fixed;
+  inset: 0;
+  /* モーダル（1000）より下に置き、全画面のまま前へ出させない */
+  z-index: 900;
+  flex: none;
+  height: auto;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+.map-panel.is-expanded .map-canvas-wrap { min-height: 0; }
+
+/* 帯は全画面の間だけ切り詰める。削ったぶんはそのまま地図の高さになる */
+.map-panel.is-expanded .map-panel-heading {
+  min-height: 44px;
+  padding-block: 7px;
+}
+/* パネルが画面そのものになるため、パネル名は自明になる */
+.map-panel.is-expanded .map-panel-heading h3 { display: none; }
+
+/*
+ * 全画面の間だけ帯に出す速度と進行方向。
+ * 移動情報パネルが画面から消えるので、動きながら要る 2 つだけを引き継ぐ。
+ */
+.map-hud-motion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font: 650 13px ui-monospace, Consolas, monospace;
+}
+.map-hud-motion span + span::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--slate-400);
+}
+
+/* 受信機が繋がっていないことの知らせ。全画面では接続バーが見えなくなるため */
+.map-hud-alert {
+  padding: 2px 9px;
+  border: 1px solid #efc1b9;
+  border-radius: 999px;
+  background: #fff5f2;
+  color: #8c392f;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/*
+ * 全画面の切り替え。
+ * 高さはログパネル・軌跡操作のツールバーと同じ 26px に揃える。
+ */
+.map-expand-button {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  height: 26px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background-color: #f8faf8;
+  color: #61706a;
+  font-size: 11px;
+  font-weight: 700;
+  outline: none;
+  transition: border-color .15s, color .15s, background-color .15s, box-shadow .15s;
+}
+.map-expand-button:hover {
+  border-color: #aebcb6;
+  color: var(--ink);
+  background-color: #f1f4f2;
+}
+.map-expand-button:focus-visible {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px var(--green-soft);
+}
+
+/* 全画面の間は背後のページを動かさない */
+body.map-expanded { overflow: hidden; }
+
+/*
+ * 全画面の裏に隠れたパネルは、見えないだけでは焦点も読み上げも素通りする。
+ * visibility なら測定に影響を出さずに両方から外せるため、display は変えない
+ * （ログ端末の追従は高さを測って動くので、消すと戻ったときに位置を失う）。
+ */
+body.map-expanded .app-shell > *:not(.map-panel) { visibility: hidden; }
