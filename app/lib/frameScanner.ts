@@ -9,11 +9,17 @@ const NMEA_START = 0x24;
 const UBX_SYNC_1 = 0xb5;
 const UBX_SYNC_2 = 0x62;
 
-/** 走査で切り出された 1 フレーム */
+/**
+ * 走査で切り出された 1 フレーム。
+ *
+ * バイナリの 2 種別が持つ `valid` は、走査中に済ませたチェックサム検証の結果。
+ * 走査はチェックサムが通ったフレームしか切り出さないため常に `true` だが、
+ * 解析側が同じ計算を繰り返さずに済むよう、確定した事実として持ち回る。
+ */
 export type ScannedFrame =
   | { kind: 'nmea'; text: string }
-  | { kind: 'ubx'; frame: Uint8Array }
-  | { kind: 'rtcm'; frame: Uint8Array };
+  | { kind: 'ubx'; frame: Uint8Array; valid: boolean }
+  | { kind: 'rtcm'; frame: Uint8Array; valid: boolean };
 
 export type ScanResult = {
   /** 切り出せたフレーム（受信順） */
@@ -67,7 +73,7 @@ export function scanFrames(buffer: Uint8Array, decoder: TextDecoder): ScanResult
         cursor += 1;
         continue;
       }
-      frames.push({ kind: 'ubx', frame });
+      frames.push({ kind: 'ubx', frame, valid: true });
       cursor += frameLength;
       continue;
     }
@@ -108,7 +114,7 @@ export function scanFrames(buffer: Uint8Array, decoder: TextDecoder): ScanResult
         cursor += 1;
         continue;
       }
-      frames.push({ kind: 'rtcm', frame });
+      frames.push({ kind: 'rtcm', frame, valid: true });
       cursor += frameLength;
       continue;
     }

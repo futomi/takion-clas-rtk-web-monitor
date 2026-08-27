@@ -188,13 +188,19 @@ function parseNavPvt(payload: DataView, update: Partial<Telemetry>): void {
   }
 }
 
-/** UBX バイナリフレーム 1 件を解析する */
-export function parseUbx(frame: Uint8Array): ParsedMessage {
+/**
+ * UBX バイナリフレーム 1 件を解析する。
+ *
+ * @param verifiedChecksum 検証済みなら、その結果。フレーム走査で済ませた検証を
+ *   受け取り、同じ Fletcher 計算をフレームごとに二度走らせないためのもの。
+ *   省略した場合はこの場で検証するので、単体でもそのまま呼べる。
+ */
+export function parseUbx(frame: Uint8Array, verifiedChecksum?: boolean): ParsedMessage {
   const messageClass = frame[2];
   const messageId = frame[3];
   const payloadLength = readUbxPayloadLength(frame);
   const type = ubxMessageType(messageClass, messageId);
-  const valid = ubxChecksumIsValid(frame);
+  const valid = verifiedChecksum ?? ubxChecksumIsValid(frame);
   const update: Partial<Telemetry> = {};
 
   if (!valid || !payloadLengthIsConsistent(frame)) return { type, valid, update };

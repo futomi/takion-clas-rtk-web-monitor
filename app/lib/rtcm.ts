@@ -41,9 +41,15 @@ export function rtcmChecksumIsValid(frame: Uint8Array): boolean {
   return crc24q(frame, frame.length - 3) === expected;
 }
 
-/** RTCM3 フレーム 1 件を解析する */
-export function parseRtcm(frame: Uint8Array): ParsedMessage {
-  const valid = rtcmChecksumIsValid(frame);
+/**
+ * RTCM3 フレーム 1 件を解析する。
+ *
+ * @param verifiedChecksum 検証済みなら、その結果。フレーム走査で済ませた検証を
+ *   受け取り、同じ CRC-24Q をフレームごとに二度走らせないためのもの。
+ *   省略した場合はこの場で検証するので、単体でもそのまま呼べる。
+ */
+export function parseRtcm(frame: Uint8Array, verifiedChecksum?: boolean): ParsedMessage {
+  const valid = verifiedChecksum ?? rtcmChecksumIsValid(frame);
   const messageType = readRtcmMessageType(frame);
   const type = messageType > 0 ? `RTCM${messageType}` : 'RTCM3';
   return {
