@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppFooter from './components/AppFooter';
 import AppHeader from './components/AppHeader';
 import CorrectionModePanel from './components/CorrectionModePanel';
@@ -22,7 +22,7 @@ import { useNtripForm } from './hooks/useNtripForm';
 import { useTrackRecorder } from './hooks/useTrackRecorder';
 import { DEFAULT_BAUD_RATE } from './lib/constants';
 import { formatSecondsAgo } from './lib/format';
-import type { CorrectionMode, LogCategoryFilter, LogDisplayMode, LogLine } from './lib/types';
+import type { CorrectionMode, LogCategoryFilter, LogDisplayMode, LogLine, NtripLiveState } from './lib/types';
 
 /**
  * 画面全体の組み立て役。
@@ -112,14 +112,28 @@ export default function MonitorClient() {
     void receiverDisconnect();
   }, [receiverDisconnect]);
 
-  // LogPanel は memo 済み。インラインで渡すと毎レンダー別物になり memo が効かないため、
-  // モーダル開閉と受信機接続のハンドラはここで同一性を固定しておく
+  // LogPanel と NtripConfigPanel は memo 済み。インラインで渡すと毎レンダー別物になり
+  // memo が効かないため、モーダル開閉と接続まわりのハンドラはここで同一性を固定しておく
   const handleOpenDictionary = useCallback(() => setShowDictionary(true), []);
   const handleCloseDictionary = useCallback(() => setShowDictionary(false), []);
   const handleCloseLogDetail = useCallback(() => setSelectedLog(null), []);
   const handleConnect = useCallback(() => {
     void receiverConnect(baudRate);
   }, [receiverConnect, baudRate]);
+  const handleRefreshSourcesClick = useCallback(() => {
+    void handleRefreshSources();
+  }, [handleRefreshSources]);
+
+  // NTRIP フックの戻り値は毎レンダー新しいオブジェクトになる。
+  // そのまま渡すと設定パネルの memo が素通りするため、描画に使う値だけを固定して渡す
+  const ntripLive = useMemo<NtripLiveState>(() => ({
+    status: ntrip.status,
+    error: ntrip.error,
+    isFetchingSources: ntrip.isFetchingSources,
+    bytesReceived: ntrip.bytesReceived,
+    rateKbps: ntrip.rateKbps,
+    lastDataAt: ntrip.lastDataAt,
+  }), [ntrip.status, ntrip.error, ntrip.isFetchingSources, ntrip.bytesReceived, ntrip.rateKbps, ntrip.lastDataAt]);
 
   // 受信機との接続が切れたら NTRIP も止める。
   // 手動の切断だけでなく、ケーブルが抜けた場合など受信側から切れたときも確実に畳む。
@@ -167,11 +181,12 @@ export default function MonitorClient() {
           onFormChange={updateNtripForm}
           activeMountpoint={activeMountpoint}
           candidates={candidates}
-          ntrip={ntrip}
+          ntrip={ntripLive}
           clock={clock}
           connection={connection}
-          telemetry={telemetry}
-          onRefreshSources={() => void handleRefreshSources()}
+          latitude={telemetry.latitude}
+          longitude={telemetry.longitude}
+          onRefreshSources={handleRefreshSourcesClick}
           onConnect={handleNtripConnect}
           onDisconnect={ntripStop}
         />

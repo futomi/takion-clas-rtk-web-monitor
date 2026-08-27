@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { DEFAULT_NTRIP_HOST, DEFAULT_NTRIP_PORT, isValidPort, parseSourceTable } from '@/app/lib/ntrip';
+import {
+  DEFAULT_NTRIP_HOST,
+  DEFAULT_NTRIP_PORT,
+  isValidPort,
+  parseSourceTable,
+  toMountpointSummary,
+} from '@/app/lib/ntrip';
 import { buildSourceTableRequest } from '@/app/lib/ntripHeader';
 import { NtripRequestError, toNtripErrorResponse } from '@/app/lib/server/apiError';
 import { openCasterSocket } from '@/app/lib/server/casterSocket';
@@ -107,7 +113,14 @@ export async function GET(request: NextRequest) {
     // 検査を通した正規化済みのホスト名を名乗る
     const rawData = await fetchSourceTable(target.address, target.hostname, port, request.signal);
     const records = parseSourceTable(rawData);
-    return NextResponse.json({ host: target.hostname, port, count: records.length, records });
+    // 画面が読まない列は載せない。rtk2go のように配信局が 1 万件規模の Caster では、
+    // 全 17 列をそのまま返すと応答が数 MB になり、その解析だけでブラウザが止まる
+    return NextResponse.json({
+      host: target.hostname,
+      port,
+      count: records.length,
+      records: records.map(toMountpointSummary),
+    });
   } catch (error) {
     return toNtripErrorResponse(error, 'Source-tableの取得に失敗しました。');
   } finally {

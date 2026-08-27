@@ -20,8 +20,26 @@ export type MountpointRecord = {
   bitrate: number;
 };
 
+/**
+ * 配信局のうち、画面が実際に使う列だけを取り出した形。
+ *
+ * Source-table には STR 行の全 17 列が載るが、選択 UI が読むのは名前・形式・国と
+ * 距離計算用の座標だけで、残りの列は一度も参照されない。Caster によっては
+ * 配信局が 1 万件を超えるため、ブラウザへ渡す前にここへ落として転送量を削る。
+ */
+export type MountpointSummary = Pick<
+  MountpointRecord,
+  'mountpoint' | 'format' | 'country' | 'latitude' | 'longitude'
+>;
+
+/** 解析済みの STR レコードを、ブラウザへ渡す形へ落とす */
+export function toMountpointSummary(record: MountpointRecord): MountpointSummary {
+  const { mountpoint, format, country, latitude, longitude } = record;
+  return { mountpoint, format, country, latitude, longitude };
+}
+
 /** 現在位置からの距離を付与した配信局 */
-export type MountpointCandidate = MountpointRecord & {
+export type MountpointCandidate = MountpointSummary & {
   distanceKm: number | null;
 };
 
@@ -30,7 +48,7 @@ export type SourceTableResponse = {
   host: string;
   port: number;
   count: number;
-  records: MountpointRecord[];
+  records: MountpointSummary[];
 };
 
 /** NTRIP 接続に使う設定。パスワードは意図的に含めない（永続化対象外のため） */
@@ -136,7 +154,7 @@ export function parseSourceTable(rawText: string): MountpointRecord[] {
  * 国コード JPN を優先したうえでマウントポイント名のアルファベット順にする。
  */
 export function rankMountpoints(
-  records: MountpointRecord[],
+  records: MountpointSummary[],
   referenceLatitude: number | null,
   referenceLongitude: number | null,
 ): MountpointCandidate[] {

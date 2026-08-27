@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MountpointRecord, NtripConnectionConfig, SourceTableResponse } from '../lib/ntrip';
+import type { MountpointSummary, NtripConnectionConfig, SourceTableResponse } from '../lib/ntrip';
 import type { NtripStatus } from '../lib/types';
 
 /** 受信レートを再計算する間隔（ms） */
@@ -23,7 +23,7 @@ type UseNtripClientOptions = {
 export function useNtripClient({ writeToPort, isWriterReady }: UseNtripClientOptions) {
   const [status, setStatus] = useState<NtripStatus>('idle');
   const [error, setError] = useState('');
-  const [sourceTable, setSourceTable] = useState<MountpointRecord[]>([]);
+  const [sourceTable, setSourceTable] = useState<MountpointSummary[]>([]);
   const [isFetchingSources, setIsFetchingSources] = useState(false);
   const [bytesReceived, setBytesReceived] = useState(0);
   const [rateKbps, setRateKbps] = useState(0);

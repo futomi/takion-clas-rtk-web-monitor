@@ -1,9 +1,19 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import { formatKilobytes, formatSecondsAgo } from '../lib/format';
 import { isValidPort, type MountpointCandidate } from '../lib/ntrip';
-import { hasPosition, type Telemetry } from '../lib/telemetry';
 import type { ConnectionState, NtripFormState, NtripLiveState, NtripStatus } from '../lib/types';
+
+/**
+ * プルダウンへ並べる配信局の最大数。
+ *
+ * rtk2go のような公開 Caster は配信局を 1 万件規模で返す。全件を `<option>` にすると、
+ * 測位が更新されるたびに 1 万個の要素を作り直すことになり、それだけで画面が固まる。
+ * そもそも 1 万行のプルダウンからは目的の局を選べないため、近い順の上位だけを並べ、
+ * 一覧に無い局は「手動入力」で指定してもらう。
+ */
+const MAX_LISTED_CANDIDATES = 50;
 
 type NtripConfigPanelProps = {
   form: NtripFormState;
@@ -15,7 +25,9 @@ type NtripConfigPanelProps = {
   ntrip: NtripLiveState;
   clock: number;
   connection: ConnectionState;
-  telemetry: Telemetry;
+  /** 受信機の現在位置。自動選定の基準を示すためだけに使う */
+  latitude?: number;
+  longitude?: number;
   onRefreshSources: () => void;
   onConnect: () => void;
   onDisconnect: () => void;
@@ -38,7 +50,7 @@ function candidateLabel(candidate: MountpointCandidate): string {
 }
 
 /** ネットワークRTK (NTRIP) の接続設定パネル */
-export default function NtripConfigPanel({
+function NtripConfigPanel({
   form,
   onFormChange,
   activeMountpoint,
@@ -46,7 +58,8 @@ export default function NtripConfigPanel({
   ntrip,
   clock,
   connection,
-  telemetry,
+  latitude,
+  longitude,
   onRefreshSources,
   onConnect,
   onDisconnect,
@@ -55,8 +68,26 @@ export default function NtripConfigPanel({
   // 接続確立中および確立後は接続先を変更させない
   const isBusy = status === 'connected' || status === 'connecting';
   const isConnected = status === 'connected';
-  const positioned = hasPosition(telemetry);
+  const positioned = latitude !== undefined && longitude !== undefined;
   const portIsValid = isValidPort(form.port);
+
+  /**
+   * 実際に並べる配信局。近い順の上位だけに絞る。
+   *
+   * 選択中の局が上位から外れることがある（自動選定を切って遠い局を選んだ場合など）。
+   * 選択肢に無い値を `<select>` へ渡すと、画面上はどれも選ばれていない状態になり、
+   * 接続先が分からなくなるため、外れていても必ず 1 つ足しておく。
+   */
+  const listedCandidates = useMemo(() => {
+    const listed = candidates.slice(0, MAX_LISTED_CANDIDATES);
+    if (!activeMountpoint || listed.some((candidate) => candidate.mountpoint === activeMountpoint)) {
+      return listed;
+    }
+    const selected = candidates.find((candidate) => candidate.mountpoint === activeMountpoint);
+    return selected ? [...listed, selected] : listed;
+  }, [candidates, activeMountpoint]);
+
+  const hiddenCandidateCount = candidates.length - listedCandidates.length;
 
   /**
    * ポート欄の入力を数値へ落とす。
@@ -149,12 +180,12 @@ export default function NtripConfigPanel({
                 onChange={(event) => onFormChange({ autoSelect: false, mountpoint: event.target.value })}
                 disabled={isConnected || isFetchingSources}
               >
-                {candidates.length === 0 ? (
+                {listedCandidates.length === 0 ? (
                   <option value={activeMountpoint || ''}>
                     {activeMountpoint || '局リストを取得してください'}
                   </option>
                 ) : (
-                  candidates.map((candidate) => (
+                  listedCandidates.map((candidate) => (
                     <option key={candidate.mountpoint} value={candidate.mountpoint}>
                       {candidateLabel(candidate)}
                     </option>
@@ -171,9 +202,18 @@ export default function NtripConfigPanel({
             </div>
           )}
 
+          {/* 一覧を絞っていることは必ず伝える。黙って隠すと、繋ぎたい局が
+              配信されていないのか単に出ていないだけなのかを画面から判断できない */}
+          {hiddenCandidateCount > 0 && (
+            <small className="field-note">
+              近い順に {listedCandidates.length} 局を表示しています（全 {candidates.length} 局）。
+              一覧に無い局は「手動入力」で指定できます。
+            </small>
+          )}
+
           {positioned ? (
             <small className="field-note coords-hint">
-              🛰️ Takion位置基準: {telemetry.latitude?.toFixed(4)}, {telemetry.longitude?.toFixed(4)} から自動検出
+              🛰️ Takion位置基準: {latitude.toFixed(4)}, {longitude.toFixed(4)} から自動検出
             </small>
           ) : (
             <small className="field-note coords-hint waiting">
@@ -243,3 +283,11 @@ export default function NtripConfigPanel({
     </section>
   );
 }
+
+/*
+ * 親は経過時間の表示のため毎秒、測位状態の更新のためさらに細かく再描画される。
+ * このパネルは接続設定と転送状況にしか依存しないので memo で包み、
+ * 関係のない再描画に巻き込まれないようにする
+ * （そのため親から渡すハンドラはすべて同一性の保たれたものにしてある）。
+ */
+export default memo(NtripConfigPanel);
