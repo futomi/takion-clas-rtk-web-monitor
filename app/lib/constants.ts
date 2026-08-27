@@ -59,3 +59,26 @@ export const MAP_ERROR_DURATION_MS = 4000;
 export const UBLOX_VENDOR_ID = 0x1546;
 export const BAUD_RATE_OPTIONS = [9600, 19200, 38400, 57600, 115200, 230400, 460800] as const;
 export const DEFAULT_BAUD_RATE = 38400;
+
+// ---- 軌跡記録 ----
+/** 軌跡へ 1 点を積む最短間隔（ms）。UI から選択できる候補 */
+export const TRACK_INTERVAL_OPTIONS = [1000, 2000, 5000, 10000] as const;
+export const DEFAULT_TRACK_INTERVAL_MS = 1000;
+/**
+ * 保持する軌跡点数の上限。1 秒間隔でおよそ 13.8 時間ぶん。
+ * 到達したら古い点を捨てるのではなく記録を止める（「完全なログ」という前提を崩さないため）。
+ */
+export const MAX_TRACK_POINTS = 50000;
+/**
+ * これを超える間隔が空いた区間はラインを切る（ms）。
+ * Fix ロスト中に移動した経路を、実際には通っていない直線で結んでしまうのを防ぐ。
+ */
+export const TRACK_GAP_MS = 30000;
+/**
+ * 移動距離の集計で無視する 1 歩あたりの変位（m）。
+ * 静止中でも搬送波位相解は cm 単位で揺れるため、そのまま足すと
+ * 動いていないのに距離が伸び続ける。
+ */
+export const TRACK_DISTANCE_EPSILON_M = 0.3;
+/** 軌跡点を IndexedDB へ書き出す間隔（ms）。最悪でもこの時間ぶんの取りこぼしで済む */
+export const TRACK_FLUSH_INTERVAL_MS = 2000;

@@ -1,0 +1,190 @@
+/* 軌跡の記録操作（現在地マップの見出し行）と、その通知 */
+
+/*
+ * 行の余白をすべて引き受けたうえで中身を右詰めにする。
+ *
+ * 主ボタンは最後の子なので、これで状態によらず常に右端へ来る。
+ * 幅を成り行きにすると、狭い画面で見出しと別の行に落ちたときに
+ * 親の space-between が効かず左端へ寄ってしまい、記録の開始・停止のたびに横へ動く。
+ */
+.track-controls {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/*
+ * 見た目はログパネルのツールバーに揃える。
+ * どちらも「パネルの見出し行に載る小さな操作群」で、高さが違うと行が不揃いに見えるため。
+ */
+.track-controls select,
+.track-button {
+  box-sizing: border-box;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background-color: #f8faf8;
+  color: #61706a;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  outline: none;
+  transition: border-color .15s, color .15s, background-color .15s, box-shadow .15s;
+}
+.track-controls select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 20px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='none' stroke='%2361706a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 7px 4.5px;
+}
+.track-controls select:focus,
+.track-button:focus-visible {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px var(--green-soft);
+}
+.track-button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+/*
+ * 主ボタン（記録開始 / 停止 / 再開）。
+ *
+ * 行の右端に置いて右辺をパネルの右辺に固定したうえで、最小幅も揃える。
+ * 「記録開始」と「停止」では文字数が違うため、幅を成り行きにすると
+ * 状態が変わるたびにボタンの中心がずれ、押した指の下から逃げてしまう。
+ */
+.track-button.primary {
+  min-width: 82px;
+  justify-content: center;
+}
+.track-button.ghost:hover:not(:disabled) {
+  border-color: #aebcb6;
+  color: var(--ink);
+  background-color: #f1f4f2;
+}
+/* 軌跡を隠している間は、押されていない状態だと分かるよう主張を弱める */
+.track-button[aria-pressed='false'] {
+  color: var(--slate-400);
+  background-color: transparent;
+}
+
+/* 記録の開始・再開。押すと記録が始まるので、赤い録画点を添える */
+.track-button.start {
+  border-color: #e6c7c2;
+  color: #9a4034;
+  background-color: #fdf4f2;
+}
+.track-button.start:hover {
+  border-color: var(--red);
+  color: #7f3227;
+  background-color: #fbe9e6;
+}
+
+/* 記録中の停止。現在進行中であることが伝わるよう、点を明滅させる */
+.track-button.stop {
+  border-color: #b9dccb;
+  color: var(--green);
+  background-color: var(--green-soft);
+}
+.track-button.stop:hover {
+  border-color: var(--green);
+  background-color: #c2e8d6;
+}
+
+.track-record-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+}
+.track-record-dot.recording {
+  animation: breathe 1.4s infinite;
+}
+
+.track-interval {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/*
+ * 経過時間・点数・距離。桁が増えても右側のボタンは動かない。
+ * 操作群全体が右詰めのため、伸びたぶんは左へ広がるだけで済む。
+ */
+.track-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font: 650 12px ui-monospace, Consolas, monospace;
+}
+.track-stats span + span::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--slate-400);
+}
+
+.track-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 4px;
+  border-left: 1px solid var(--line);
+}
+
+/* 復元と警告の帯。見出しと地図の間に挟むので、パネルの幅いっぱいに敷く */
+.track-notice-area {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--line);
+}
+.track-notice {
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.track-notice.restored {
+  background: var(--blue-soft);
+  color: #1e40af;
+}
+.track-notice.warning {
+  background: #fff5f2;
+  color: #8c392f;
+}
+.track-notice-close {
+  flex: 0 0 auto;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  opacity: .65;
+}
+.track-notice-close:hover { opacity: 1; }
+
+@media (max-width: 620px) {
+  .track-notice { padding-inline: 11px; }
+}

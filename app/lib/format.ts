@@ -28,3 +28,18 @@ export function formatSecondsAgo(timestamp: number | null | undefined, now: numb
 export function formatLogTime(receivedAt: number): string {
   return new Date(receivedAt).toLocaleTimeString('ja-JP', { hour12: false });
 }
+
+/** 経過時間を H:MM:SS（1 時間未満なら M:SS）で描画する */
+export function formatDuration(durationMs: number): string {
+  const total = Math.max(0, Math.floor(durationMs / 1000));
+  const seconds = total % 60;
+  const minutes = Math.floor(total / 60) % 60;
+  const hours = Math.floor(total / 3600);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+}
+
+/** 距離を m / km のうち読みやすいほうで描画する */
+export function formatDistance(meters: number): string {
+  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(2)} km`;
+}

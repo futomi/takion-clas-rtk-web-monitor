@@ -2,6 +2,7 @@
 
 import {
   AttributionControl,
+  type DataDrivenPropertyValueSpecification,
   type GeoJSONSource,
   Map as MapLibreMap,
   Marker,
@@ -14,6 +15,7 @@ import { useTemporaryMessage } from '../hooks/useTemporaryMessage';
 import { MAP_ERROR_DURATION_MS } from '../lib/constants';
 import type { QualityTone } from '../lib/correctionSource';
 import { EMPTY_FEATURE_COLLECTION, createAccuracyCircle } from '../lib/geo';
+import { buildTrackFeatures, buildTrackStartFeature, type TrackPoint } from '../lib/track';
 
 type MapPanelProps = {
   latitude?: number;
@@ -21,10 +23,28 @@ type MapPanelProps = {
   horizontalError?: number;
   course?: number;
   qualityTone: QualityTone;
+  /** 記録中の軌跡。空配列なら何も描かない */
+  track: TrackPoint[];
 };
 
 const JAPAN_CENTER: [number, number] = [138.2, 36.2];
 const ACCURACY_SOURCE_ID = 'position-accuracy';
+const TRACK_SOURCE_ID = 'track-line';
+const TRACK_START_SOURCE_ID = 'track-start';
+
+/**
+ * 軌跡の測位品質ごとの色。
+ *
+ * 地図ライブラリの paint 指定は CSS 変数を読めないため、
+ * map.css のマーカー色と同じ値をここにも書いている。
+ */
+const TRACK_LINE_COLOR: DataDrivenPropertyValueSpecification<string> = [
+  'match', ['get', 'tone'],
+  'fix', '#26b67a',
+  'float', '#d8ad35',
+  'single', '#62aa86',
+  '#9ca8a3',
+];
 
 const OSM_STYLE: StyleSpecification = {
   version: 8,
@@ -72,6 +92,7 @@ export default function MapPanel({
   horizontalError,
   course,
   qualityTone,
+  track,
 }: MapPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -117,6 +138,40 @@ export default function MapPanel({
     });
 
     map.on('load', () => {
+      // 軌跡は誤差円より先に追加して下に敷く。
+      // 現在地まわりの精度表示が、通ってきた線に隠れないようにするため
+      map.addSource(TRACK_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      map.addLayer({
+        id: `${TRACK_SOURCE_ID}-layer`,
+        type: 'line',
+        source: TRACK_SOURCE_ID,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': TRACK_LINE_COLOR,
+          'line-width': 3.5,
+          'line-opacity': 0.85,
+        },
+      });
+
+      map.addSource(TRACK_START_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      map.addLayer({
+        id: `${TRACK_START_SOURCE_ID}-layer`,
+        type: 'circle',
+        source: TRACK_START_SOURCE_ID,
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#ffffff',
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': '#0f6a4c',
+        },
+      });
+
       map.addSource(ACCURACY_SOURCE_ID, {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
@@ -183,6 +238,16 @@ export default function MapPanel({
       map.easeTo({ center: [longitude, latitude], duration: 450, essential: true });
     }
   }, [course, following, horizontalError, latitude, longitude, mapLoaded, qualityTone]);
+
+  // 軌跡の反映。点が積まれるのは記録間隔ごと（既定 1 秒）なので、
+  // 配列の入れ替わりに合わせてそのまま描き直して差し支えない。
+  // 非表示のときは呼び出し側が空の配列を渡すため、ここでは何も気にしなくてよい
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapLoaded || !map) return;
+    (map.getSource(TRACK_SOURCE_ID) as GeoJSONSource | undefined)?.setData(buildTrackFeatures(track));
+    (map.getSource(TRACK_START_SOURCE_ID) as GeoJSONSource | undefined)?.setData(buildTrackStartFeature(track));
+  }, [mapLoaded, track]);
 
   const resumeFollowing = () => {
     setFollowing(true);

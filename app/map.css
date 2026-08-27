@@ -5,18 +5,30 @@
   flex-direction: column;
   overflow: hidden;
 }
+/*
+ * 見出し・測位ステータス・軌跡の記録操作を 1 行に載せる。
+ * 幅が足りなければ折り返すので、高さは固定せず最低値だけを決める。
+ */
 .map-panel-heading {
   min-height: 54px;
-  flex: 0 0 54px;
+  flex: 0 0 auto;
   padding: 10px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 8px 14px;
   border-bottom: 1px solid var(--line);
 }
+.map-panel-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
 .map-panel-heading h3 {
-  margin: 3px 0 0;
+  margin: 0;
   font-size: 17px;
   line-height: 1.2;
 }
@@ -79,6 +91,7 @@
   transform: translateX(-50%);
 }
 .map-follow-button:hover { border-color: var(--green); color: var(--green); }
+
 .map-error {
   top: 12px;
   left: 50%;
@@ -168,11 +181,18 @@
   .map-panel { min-height: 175px; flex-basis: 190px; }
 }
 
+/*
+ * 狭い画面では見出しの操作群が折り返して数段になる。
+ * 高さを固定したままだとそのぶん地図が削られてしまうため、
+ * 地図の下限を決めてパネルのほうを伸ばす。
+ */
 @media (max-width: 900px) {
-  .map-panel { min-height: 330px; height: 360px; flex-basis: auto; }
+  .map-panel { min-height: 330px; height: auto; flex-basis: auto; }
+  .map-canvas-wrap { min-height: 260px; }
 }
 
 @media (max-width: 620px) {
-  .map-panel { min-height: 300px; height: 320px; }
+  .map-panel { min-height: 300px; }
+  .map-canvas-wrap { min-height: 230px; }
   .map-panel-heading { padding-inline: 11px; }
 }

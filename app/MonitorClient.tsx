@@ -19,6 +19,7 @@ import { useGnssReceiver } from './hooks/useGnssReceiver';
 import { useIsSerialSupported } from './hooks/useIsSerialSupported';
 import { useNtripClient } from './hooks/useNtripClient';
 import { useNtripForm } from './hooks/useNtripForm';
+import { useTrackRecorder } from './hooks/useTrackRecorder';
 import { DEFAULT_BAUD_RATE } from './lib/constants';
 import { formatSecondsAgo } from './lib/format';
 import type { CorrectionMode, LogCategoryFilter, LogDisplayMode, LogLine } from './lib/types';
@@ -54,6 +55,9 @@ export default function MonitorClient() {
     telemetry, connection, connect: receiverConnect, disconnect: receiverDisconnect, setMaxLogs, setPaused,
   } = receiver;
   const { fetchSourceTable: fetchNtripSources, start: ntripStart, stop: ntripStop } = ntrip;
+
+  const track = useTrackRecorder(telemetry);
+  const { stop: trackStop } = track;
 
   const { form: ntripForm, update: updateNtripForm, candidates, activeMountpoint } = useNtripForm({
     sourceTable: ntrip.sourceTable,
@@ -127,6 +131,13 @@ export default function MonitorClient() {
     if (connection === 'disconnecting' || connection === 'idle') ntripStop();
   }, [connection, ntripStop]);
 
+  // 受信機が切れたら軌跡の記録も止める。座標が来なくなったまま記録中の表示を続けると、
+  // 止めるまでの空白がそのまま 1 本の線として繋がって見えてしまう。
+  // 記録済みの軌跡は残すので、切断後もそのままダウンロードできる
+  useEffect(() => {
+    if (connection === 'disconnecting' || connection === 'idle') trackStop();
+  }, [connection, trackStop]);
+
   return (
     <main className="app-shell">
       <AppHeader connection={connection} />
@@ -186,7 +197,13 @@ export default function MonitorClient() {
         <MotionPanel telemetry={telemetry} />
       </section>
 
-      <MapSection telemetry={telemetry} activeSource={activeSource} quality={quality} />
+      <MapSection
+        telemetry={telemetry}
+        activeSource={activeSource}
+        quality={quality}
+        track={track}
+        clock={clock}
+      />
 
       <LogPanel
         logs={receiver.logs}
