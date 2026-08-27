@@ -16,6 +16,19 @@ import { getSerialApi, type SerialPortInfo, type SerialPortLike } from '../lib/w
 
 /** 受信カウンタを state へ写す間隔（ms） */
 const COUNTER_SAMPLE_INTERVAL_MS = 1000;
+/**
+ * 測位状態と受信ログを state へ写す間隔（ms）。
+ *
+ * チャンクは秒あたり数十回届くが、それを全部 state へ流すと画面全体の描き直しが
+ * 同じ回数だけ走る。人が読めるのは画面の更新間隔までの粒度なので、
+ * 受信ループでは ref へ積むだけにして、ここでまとめて写す。
+ *
+ * カウンタ側の 1 秒より短くしているのは、こちらは地図のマーカーや速度・方位など
+ * 連続的に動くものを含むため。8 回/秒あれば動きは滑らかに見える。
+ * `requestAnimationFrame` ではなくタイマーにしているのは、タブが背面に回っても
+ * 止まらないようにするため（軌跡の記録はこの更新を起点に動く）。
+ */
+const TELEMETRY_SAMPLE_INTERVAL_MS = 125;
 /** 切断時に受信機の設定を戻すのを待つ上限（ms） */
 const RESTORE_TIMEOUT_MS = 1500;
 
@@ -66,6 +79,17 @@ export function useGnssReceiver() {
   const [lastL6At, setLastL6At] = useState<number | null>(null);
   const [l6Summary, setL6Summary] = useState('');
 
+  /**
+   * 受信ループが積み、{@link TELEMETRY_SAMPLE_INTERVAL_MS} ごとに state へ写される控え。
+   *
+   * 上の受信カウンタと同じ考え方で、測位状態・受信ログ・L6 の受信状況も
+   * チャンクごとではなく一定間隔でまとめて反映する。
+   */
+  const telemetryRef = useRef<Telemetry>({});
+  const telemetryDirtyRef = useRef(false);
+  const pendingLogsRef = useRef<LogLine[]>([]);
+  const pendingL6Ref = useRef<{ at: number | null; summary: string | null }>({ at: null, summary: null });
+
   // ログ収集の設定。受信ループから同期的に読むため ref にも同じ値を持つ
   const [maxLogs, setMaxLogsState] = useState<number>(DEFAULT_MAX_LOGS);
   const [paused, setPausedState] = useState(false);
@@ -105,7 +129,39 @@ export function useGnssReceiver() {
     setLogs((current) => current.slice(-next));
   }, []);
 
-  const clearLogs = useCallback(() => setLogs([]), []);
+  // 写す前の控えも一緒に捨てる。残すと、消した直後に古い行が湧いて出る
+  const clearLogs = useCallback(() => {
+    pendingLogsRef.current = [];
+    setLogs([]);
+  }, []);
+
+  /**
+   * 受信ループが積んだぶんをまとめて state へ写す。
+   *
+   * 中身が無ければ何も呼ばないので、無通信の間は描き直しが起きない。
+   */
+  const flushReceived = useCallback(() => {
+    if (telemetryDirtyRef.current) {
+      telemetryDirtyRef.current = false;
+      setTelemetry(telemetryRef.current);
+    }
+
+    if (pendingLogsRef.current.length > 0) {
+      const appended = pendingLogsRef.current;
+      pendingLogsRef.current = [];
+      setLogs((current) => [...current, ...appended].slice(-maxLogsRef.current));
+    }
+
+    const l6 = pendingL6Ref.current;
+    if (l6.at !== null) {
+      setLastL6At(l6.at);
+      l6.at = null;
+    }
+    if (l6.summary !== null) {
+      setL6Summary(l6.summary);
+      l6.summary = null;
+    }
+  }, []);
 
   /**
    * 1 チャンク分のフレーム群をまとめて状態へ反映する。
@@ -142,7 +198,8 @@ export function useGnssReceiver() {
 
       if (frame.kind === 'ubx') {
         negotiator.handleFrame(frame.frame);
-        const parsed = parseUbx(frame.frame);
+        // チェックサムは走査時に済んでいる。同じ計算を繰り返さないよう結果を渡す
+        const parsed = parseUbx(frame.frame, frame.valid);
         if (parsed.type === 'QZSSL6') {
           l6At = receivedAt;
           if (parsed.summary) l6Text = parsed.summary;
@@ -152,7 +209,7 @@ export function useGnssReceiver() {
         continue;
       }
 
-      const parsed = parseRtcm(frame.frame);
+      const parsed = parseRtcm(frame.frame, frame.valid);
       entries.push(createRtcmLogEntry(parsed, frame.frame.length, receivedAt, nextLogIdRef.current()));
     }
 
@@ -171,12 +228,21 @@ export function useGnssReceiver() {
       }
     }
 
-    setTelemetry((current) => ({ ...current, ...combinedUpdate }));
+    // ここでは state を触らず控えを進めるだけにして、写すのは flushReceived に任せる
+    telemetryRef.current = { ...telemetryRef.current, ...combinedUpdate };
+    telemetryDirtyRef.current = true;
     frameCountRef.current += entries.length;
-    if (l6At !== null) setLastL6At(l6At);
-    if (l6Text !== null) setL6Summary(l6Text);
+    if (l6At !== null) pendingL6Ref.current.at = l6At;
+    if (l6Text !== null) pendingL6Ref.current.summary = l6Text;
+
     if (!pausedRef.current) {
-      setLogs((current) => [...current, ...entries].slice(-maxLogsRef.current));
+      const pending = pendingLogsRef.current;
+      for (const entry of entries) pending.push(entry);
+      // 写す先が上限で切り詰められる以上、控えを上限より多く抱えても捨てるだけになる。
+      // 写す機会が来ないまま受信が続いた場合に、控えだけが際限なく膨らむのを防ぐ
+      if (pending.length > maxLogsRef.current) {
+        pendingLogsRef.current = pending.slice(-maxLogsRef.current);
+      }
     }
   }, [negotiator]);
 
@@ -287,6 +353,11 @@ export function useGnssReceiver() {
     setConnection('connecting');
     setTelemetry({});
     setLogs([]);
+    // 前回の接続で写しきれなかった控えを新しい接続へ持ち込まない
+    telemetryRef.current = {};
+    telemetryDirtyRef.current = false;
+    pendingLogsRef.current = [];
+    pendingL6Ref.current = { at: null, summary: null };
     frameCountRef.current = 0;
     byteCountRef.current = 0;
     setFrameCount(0);
@@ -344,6 +415,18 @@ export function useGnssReceiver() {
       syncCounters();
     };
   }, [connection]);
+
+  // 接続中は測位状態と受信ログも一定間隔でまとめて写す。
+  // カウンタと別の間隔で回すため、タイマーも別に持つ
+  useEffect(() => {
+    if (connection !== 'connected') return;
+    const timer = window.setInterval(flushReceived, TELEMETRY_SAMPLE_INTERVAL_MS);
+    return () => {
+      window.clearInterval(timer);
+      // 切断の瞬間に溜まっていたぶんを取りこぼさない
+      flushReceived();
+    };
+  }, [connection, flushReceived]);
 
   // アンマウント時は読み取りを止め、開いたままのポートを解放する
   useEffect(() => () => {
