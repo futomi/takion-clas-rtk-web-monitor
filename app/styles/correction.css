@@ -1,46 +1,46 @@
 /* 補正モード切り替えパネル */
 
+/*
+ * 「ラベル・3 つの選択肢・選択中の現況」を 1 行に並べる。
+ *
+ * 選択肢をセレクトメニューに畳むと何が選べるのかが分からなくなるため、
+ * 3 つは常に出したまま、代わりに 1 つ 1 つを Fluent 2 の ToggleButton
+ * （高さ 32px）まで縮めてある。説明文はいちばん場所を食うので、
+ * 画面に出すのは選択中のモードのぶんだけにし、残りはツールチップへ回す。
+ * 幅が足りなくなったら現況だけが次の行へ折り返す。
+ */
 .correction-mode-panel {
-  padding: var(--spacing-m) var(--spacing-l);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-m);
-}
-.mode-header {
+  padding: var(--spacing-s) var(--spacing-l);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-m);
-}
-.mode-active-indicator {
-  color: var(--color-neutral-foreground-3);
-  font-size: var(--font-size-300);
-  line-height: var(--line-height-300);
-}
-.mode-active-indicator strong {
-  color: var(--color-neutral-foreground-1);
-  font-weight: var(--font-weight-semibold);
+  flex-wrap: wrap;
+  gap: var(--spacing-s) var(--spacing-l);
 }
 .mode-toggle-group {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--spacing-m);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-s);
 }
 
 /*
- * Fluent 2 の ToggleButton をカード状に広げたもの。
- * 選択状態はブランド色の罫線と淡い面で示す。影は付けない
+ * Fluent 2 の ToggleButton（medium）。
+ * 選択状態はブランド色の罫線・淡い面・文字色で示す。影は付けない
  * （影で浮かせるとフォーカス表示の二重線と重なって見分けが付かなくなる）。
  */
 .mode-tab {
-  padding: var(--spacing-m) var(--spacing-l);
+  height: 32px;
+  padding: 0 var(--spacing-m);
   border: 1px solid var(--color-neutral-stroke-1);
-  border-radius: var(--border-radius-large);
+  border-radius: var(--border-radius-medium);
   background: var(--color-neutral-background-1);
-  display: flex;
+  color: var(--color-neutral-foreground-1);
+  display: inline-flex;
   align-items: center;
-  gap: var(--spacing-m);
-  text-align: left;
+  gap: var(--spacing-s);
+  white-space: nowrap;
+  font-size: var(--font-size-300);
+  line-height: var(--line-height-300);
+  font-weight: var(--font-weight-semibold);
   transition:
     background-color var(--duration-faster) var(--curve-easy-ease),
     border-color var(--duration-faster) var(--curve-easy-ease);
@@ -55,29 +55,50 @@
 .mode-tab.active {
   border-color: var(--color-brand-stroke-1);
   background: var(--color-brand-background-2);
+  color: var(--color-brand-foreground-1);
 }
 .mode-tab.active:hover {
   background: var(--color-brand-background-2-hover);
 }
 .mode-icon {
-  font-size: 22px;
+  font-size: var(--font-size-400);
   line-height: 1;
   flex: 0 0 auto;
 }
-.mode-tab strong {
-  display: block;
-  color: var(--color-neutral-foreground-1);
-  font-size: var(--font-size-400);
-  line-height: var(--line-height-400);
-  font-weight: var(--font-weight-semibold);
-}
-.mode-tab small {
-  display: block;
-  margin-top: var(--spacing-xxs);
+
+/*
+ * 選択中モードの現況。
+ * 余った幅を受け持ち、収まらない説明は末尾を省略する。
+ * flex-basis を 220px 置いているのは、それだけの幅も残らないときは
+ * 半端に潰さず行ごと折り返させるため。
+ */
+.mode-status {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-s);
   color: var(--color-neutral-foreground-3);
   font-size: var(--font-size-200);
   line-height: var(--line-height-200);
 }
-.mode-tab.active small {
-  color: var(--color-neutral-foreground-2);
+.mode-status.live {
+  color: var(--color-brand-foreground-1);
+  font-weight: var(--font-weight-semibold);
+}
+.mode-status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 補正データが今まさに流れていることを示す明滅。接続チップの点と同じ作法 */
+.mode-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: var(--border-radius-circular);
+  background: var(--color-brand-accent);
+  box-shadow: 0 0 0 3px var(--brand-150);
+  animation: breathe 1.8s infinite;
 }

@@ -28,7 +28,6 @@
   .app-shell { height: auto; min-height: 100dvh; overflow: visible; padding-inline: var(--spacing-l); }
   .device-toolbar { grid-template-columns: minmax(190px, 1fr) auto 120px; }
   .device-id { display: none; }
-  .mode-toggle-group { grid-template-columns: 1fr; }
   .ntrip-grid { grid-template-columns: 1fr; }
   .log-panel { min-height: 300px; }
   .terminal { height: 230px; flex: 0 0 auto; }

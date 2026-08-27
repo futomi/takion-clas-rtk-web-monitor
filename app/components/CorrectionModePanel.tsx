@@ -9,30 +9,56 @@ type CorrectionModePanelProps = {
   l6Summary: string;
 };
 
-/** 選択中モードの見出しラベル */
-function activeModeLabel(mode: CorrectionMode, ntripStatus: NtripStatus): string {
-  if (mode === 'clas') return '🛰️ CLAS (みちびき L6衛星補正)';
-  if (mode === 'ntrip') return `🌐 ネットワークRTK (${ntripStatus === 'connected' ? '接続中' : '未接続'})`;
-  return '⚪ 単独測位';
-}
+/**
+ * 選択肢の定義。
+ *
+ * `hint` は選択していないモードの説明で、ツールチップとしてだけ出す。
+ * 3 つぶんの説明を常時並べると、それだけでパネルが 2 行ぶん高くなるため、
+ * 画面に出すのは選択中のモードの現況（下の `currentStatus`）だけに絞っている。
+ */
+const MODE_OPTIONS: { mode: CorrectionMode; icon: string; label: string; hint: string }[] = [
+  {
+    mode: 'clas',
+    icon: '🛰️',
+    label: 'CLAS',
+    hint: 'みちびき L6衛星補正。衛星信号から直接補正 (完全オフライン / 収束に数分)',
+  },
+  {
+    mode: 'ntrip',
+    icon: '🌐',
+    label: 'ネットワークRTK',
+    hint: 'NTRIP で配信局の RTCM を受け取り即時Fix (RTK2GO等)',
+  },
+  {
+    mode: 'none',
+    icon: '⚪',
+    label: '単独測位',
+    hint: '補正なし (通常のGNSS 3D Fix)',
+  },
+];
 
-/** モード選択タブ 1 つ分 */
-function ModeTab({ active, icon, title, description, onClick }: {
-  active: boolean;
-  icon: string;
-  title: string;
-  description: string;
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" className={`mode-tab ${active ? 'active' : ''}`} onClick={onClick} aria-pressed={active}>
-      <span className="mode-icon">{icon}</span>
-      <div>
-        <strong>{title}</strong>
-        <small>{description}</small>
-      </div>
-    </button>
-  );
+/**
+ * 選択中モードの現況。
+ *
+ * `live` は補正データが実際に流れていること。真のときだけ明滅する点を添えて、
+ * 「選んである」と「効いている」を見分けられるようにする。
+ */
+function currentStatus(
+  mode: CorrectionMode,
+  ntripStatus: NtripStatus,
+  ntripRateKbps: number,
+  isL6Active: boolean,
+  l6Summary: string,
+): { text: string; live: boolean } {
+  if (mode === 'clas') {
+    if (!isL6Active) return { text: '衛星信号から直接補正 (完全オフライン / 収束に数分)', live: false };
+    return { text: `L6信号受信中${l6Summary ? ` (${l6Summary})` : ''}`, live: true };
+  }
+  if (mode === 'ntrip') {
+    if (ntripStatus !== 'connected') return { text: 'インターネット経由で即時Fix (RTK2GO等)', live: false };
+    return { text: `RTCM受信中 (${ntripRateKbps} KB/s · 即時Fix)`, live: true };
+  }
+  return { text: '補正なし (通常のGNSS 3D Fix)', live: false };
 }
 
 /** 補正ソースの切り替えパネル */
@@ -44,45 +70,30 @@ export default function CorrectionModePanel({
   isL6Active,
   l6Summary,
 }: CorrectionModePanelProps) {
-  const clasDescription = isL6Active
-    ? `🛰️ L6信号受信中 ${l6Summary ? `(${l6Summary})` : ''}`.trim()
-    : '衛星信号から直接補正 (完全オフライン / 収束に数分)';
-
-  const ntripDescription = ntripStatus === 'connected'
-    ? `🌐 RTCM受信中 (${ntripRateKbps} KB/s · 即時Fix)`
-    : 'インターネット経由で即時Fix (RTK2GO等)';
+  const status = currentStatus(mode, ntripStatus, ntripRateKbps, isL6Active, l6Summary);
 
   return (
     <section className="correction-mode-panel panel" aria-label="補正モード選択">
-      <div className="mode-header">
-        <span className="card-label">補正ソース</span>
-        <span className="mode-active-indicator">
-          選択中: <strong>{activeModeLabel(mode, ntripStatus)}</strong>
-        </span>
+      <span className="card-label" id="correction-mode-label">補正ソース</span>
+      <div className="mode-toggle-group" role="group" aria-labelledby="correction-mode-label">
+        {MODE_OPTIONS.map((option) => (
+          <button
+            key={option.mode}
+            type="button"
+            className={`mode-tab ${mode === option.mode ? 'active' : ''}`}
+            title={option.hint}
+            aria-pressed={mode === option.mode}
+            onClick={() => onModeChange(option.mode)}
+          >
+            <span className="mode-icon" aria-hidden="true">{option.icon}</span>
+            {option.label}
+          </button>
+        ))}
       </div>
-      <div className="mode-toggle-group">
-        <ModeTab
-          active={mode === 'clas'}
-          icon="🛰️"
-          title="CLAS (みちびき L6)"
-          description={clasDescription}
-          onClick={() => onModeChange('clas')}
-        />
-        <ModeTab
-          active={mode === 'ntrip'}
-          icon="🌐"
-          title="ネットワークRTK (NTRIP)"
-          description={ntripDescription}
-          onClick={() => onModeChange('ntrip')}
-        />
-        <ModeTab
-          active={mode === 'none'}
-          icon="⚪"
-          title="単独測位"
-          description="補正なし (通常のGNSS 3D Fix)"
-          onClick={() => onModeChange('none')}
-        />
-      </div>
+      <p className={`mode-status ${status.live ? 'live' : ''}`}>
+        {status.live && <span className="mode-status-dot" aria-hidden="true" />}
+        <span className="mode-status-text">{status.text}</span>
+      </p>
     </section>
   );
 }

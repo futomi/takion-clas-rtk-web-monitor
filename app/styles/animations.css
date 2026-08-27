@@ -6,7 +6,8 @@
 
 /*
  * 生きて動いていることを示す明滅。
- * .connection-chip.connected .status-dot と .track-record-dot.recording が参照する。
+ * .connection-chip.connected .status-dot・.mode-status-dot・
+ * .track-record-dot.recording が参照する。
  */
 @keyframes breathe {
   0%, 100% { opacity: 1; transform: scale(1); }
