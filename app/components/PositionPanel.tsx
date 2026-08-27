@@ -61,7 +61,8 @@ export default function PositionPanel({ telemetry, activeSource, quality }: Posi
       <div className="position-meta">
         <MetaItem label="標高" value={telemetry.altitude} unit="m" />
         <MetaItem label="推定水平誤差" value={telemetry.horizontalError} unit="m" />
-        <MetaItem label="UTC" value={telemetry.timeUtc} unit="UTC" />
+        {/* 単位はラベルが兼ねる。値の後ろにも UTC を添えると同じ語が 2 度出る */}
+        <MetaItem label="UTC" value={telemetry.timeUtc} />
       </div>
     </article>
   );

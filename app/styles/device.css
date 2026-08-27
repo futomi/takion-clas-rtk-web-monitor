@@ -2,78 +2,138 @@
 
 .device-toolbar {
   flex: 0 0 auto;
-  padding: 10px 14px;
+  padding: var(--spacing-m) var(--spacing-l);
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) auto auto 108px;
+  grid-template-columns: minmax(220px, 1fr) auto auto 120px;
   align-items: center;
-  gap: 16px;
+  gap: var(--spacing-l);
 }
 .device-heading { min-width: 0; }
-.device-name { gap: 9px; margin-top: 3px; }
+.device-name { gap: var(--spacing-m-nudge); margin-top: var(--spacing-xxs); }
 .device-name h2 {
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 18px;
-  line-height: 1.2;
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-700);
+  line-height: var(--line-height-700);
+  font-weight: var(--font-weight-semibold);
 }
 .api-badge {
   flex: 0 0 auto;
-  padding: 4px 7px;
-  border-radius: 999px;
-  font: 700 12px/1 ui-monospace, Consolas, monospace;
+  padding: 0 var(--spacing-s);
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-circular);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  font-weight: var(--font-weight-semibold);
 }
-.api-badge.supported { color: var(--green); background: var(--green-soft); }
-.api-badge.unsupported { color: var(--red); background: #f9e4df; }
+.api-badge.supported {
+  color: var(--color-brand-foreground-1);
+  background: var(--color-brand-background-2);
+  border-color: var(--color-brand-stroke-2);
+}
+.api-badge.unsupported {
+  color: var(--color-status-danger-foreground);
+  background: var(--color-status-danger-background);
+  border-color: var(--color-status-danger-border);
+}
 .device-id {
-  min-width: 160px;
+  min-width: 176px;
   display: grid;
-  gap: 2px;
-  color: #87928e;
-  font-size: 12px;
+  gap: var(--spacing-xxs);
+  color: var(--color-neutral-foreground-3);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
 }
 .device-id code {
-  color: #52645d;
-  font: 600 14px ui-monospace, Consolas, monospace;
+  color: var(--color-neutral-foreground-2);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-400);
+  font-weight: var(--font-weight-semibold);
 }
 .baud-control {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 13px;
+  gap: var(--spacing-s);
+  color: var(--color-neutral-foreground-2);
+  font-size: var(--font-size-300);
+  line-height: var(--line-height-300);
 }
+
+/*
+ * Fluent 2 の Input / Dropdown。
+ *
+ * 下辺だけを濃い罫線にし、フォーカスで 2px のブランド色へ太らせるのが Fluent の作法。
+ * 罫線全体の色を変える方式と違い、入力欄の並びの中でどこに居るかが一目で分かる。
+ * 太らせたぶんの 1px は padding-bottom から引いて、中身が上下に動かないようにする。
+ */
 .baud-control select {
-  width: 132px;
-  height: 38px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 0 9px;
+  width: 152px;
+  height: 40px;
+  padding: 0 var(--spacing-m);
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-bottom-color: var(--color-neutral-stroke-accessible);
+  border-radius: var(--border-radius-medium);
   outline: none;
-  background: #f8faf8;
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 700;
+  background: var(--color-neutral-background-1);
+  color: var(--color-neutral-foreground-1);
+  font-size: var(--font-size-400);
+  font-weight: var(--font-weight-semibold);
+  transition: border-color var(--duration-faster) var(--curve-easy-ease);
 }
-.baud-control select:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+.baud-control select:hover:not(:disabled) {
+  border-color: var(--color-neutral-stroke-accessible);
+}
+.baud-control select:focus-visible {
+  border-bottom: 2px solid var(--color-brand-stroke-1);
+  padding-bottom: 1px;
+  box-shadow: none;
+}
+.baud-control select:disabled {
+  border-color: var(--color-neutral-stroke-disabled);
+  background: var(--color-neutral-background-disabled);
+  color: var(--color-neutral-foreground-disabled);
+}
+
+/* Fluent 2 の Primary Button（large） */
 .connect-button {
-  width: 108px;
-  height: 38px;
-  border: 0;
-  border-radius: 4px;
+  width: 120px;
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-medium);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  background: var(--green);
-  font-size: 14px;
-  font-weight: 700;
-  transition: background .16s, transform .16s;
+  color: var(--color-neutral-foreground-inverted);
+  background: var(--color-brand-background);
+  font-size: var(--font-size-400);
+  font-weight: var(--font-weight-semibold);
+  transition: background-color var(--duration-faster) var(--curve-easy-ease);
 }
-.connect-button:hover:not(:disabled) { background: #0a583f; transform: translateY(-1px); }
-.connect-button:disabled { opacity: .5; }
-.disconnect-button { color: var(--green); background: var(--green-soft); }
-.disconnect-button:hover:not(:disabled) { color: #fff; background: #c2e8d6; }
+.connect-button:hover:not(:disabled) { background: var(--color-brand-background-hover); }
+.connect-button:active:not(:disabled) { background: var(--color-brand-background-pressed); }
+.connect-button:disabled {
+  background: var(--color-neutral-background-disabled);
+  border-color: var(--color-neutral-stroke-disabled);
+  color: var(--color-neutral-foreground-disabled);
+}
 
-/* 補正モード切り替えパネル */
+/* Fluent 2 の Secondary Button。主操作と取り違えないよう面を持たせない */
+.disconnect-button {
+  border-color: var(--color-neutral-stroke-1);
+  color: var(--color-neutral-foreground-1);
+  background: var(--color-neutral-background-1);
+}
+.disconnect-button:hover:not(:disabled) {
+  color: var(--color-neutral-foreground-1);
+  background: var(--color-neutral-background-3);
+}
+.disconnect-button:active:not(:disabled) {
+  color: var(--color-neutral-foreground-1);
+  background: var(--color-neutral-background-5);
+}

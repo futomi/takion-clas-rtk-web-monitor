@@ -1,16 +1,24 @@
-/* アプリ共通のエラーバナー */
+/* アプリ共通のエラーバナー（Fluent 2 の MessageBar / intent: error） */
 
 .error-banner {
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
-  padding: 9px 12px;
-  border: 1px solid #efc1b9;
-  border-radius: 4px;
-  background: #fff5f2;
-  color: #8c392f;
-  font-size: 14px;
+  gap: var(--spacing-m);
+  padding: var(--spacing-m-nudge) var(--spacing-m);
+  border: 1px solid var(--color-status-danger-border);
+  border-radius: var(--border-radius-medium);
+  background: var(--color-status-danger-background);
+  color: var(--color-status-danger-foreground);
+  font-size: var(--font-size-400);
+  line-height: var(--line-height-400);
 }
-.error-banner button { border: 0; background: transparent; color: inherit; text-decoration: underline; }
+.error-banner strong { font-weight: var(--font-weight-semibold); }
+.error-banner button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+}

@@ -39,13 +39,14 @@ const TRACK_START_SOURCE_ID = 'track-start';
  *
  * 地図ライブラリの paint 指定は CSS 変数を読めないため、
  * map.css のマーカー色と同じ値をここにも書いている。
+ * 値の出どころは base.css のブランド ramp と分類色トークン。
  */
 const TRACK_LINE_COLOR: DataDrivenPropertyValueSpecification<string> = [
   'match', ['get', 'tone'],
-  'fix', '#26b67a',
-  'float', '#d8ad35',
-  'single', '#62aa86',
-  '#9ca8a3',
+  'fix', '#219e70',
+  'float', '#ca5010',
+  'single', '#3aae81',
+  '#9e9e9e',
 ];
 
 const OSM_STYLE: StyleSpecification = {

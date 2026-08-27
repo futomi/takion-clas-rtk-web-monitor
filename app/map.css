@@ -1,6 +1,6 @@
 .map-panel {
-  min-height: 210px;
-  flex: 0 0 clamp(230px, 29vh, 330px);
+  min-height: 240px;
+  flex: 0 0 clamp(260px, 32vh, 380px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -10,34 +10,38 @@
  * 幅が足りなければ折り返すので、高さは固定せず最低値だけを決める。
  */
 .map-panel-heading {
-  min-height: 54px;
+  min-height: 60px;
   flex: 0 0 auto;
-  padding: 10px 14px;
+  padding: var(--spacing-m) var(--spacing-l);
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 8px 14px;
-  border-bottom: 1px solid var(--line);
+  gap: var(--spacing-s) var(--spacing-l);
+  border-bottom: 1px solid var(--color-neutral-stroke-2);
 }
 .map-panel-title {
   min-width: 0;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  gap: var(--spacing-xs) var(--spacing-m);
 }
 .map-panel-heading h3 {
   margin: 0;
-  font-size: 17px;
-  line-height: 1.2;
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-700);
+  line-height: var(--line-height-700);
+  font-weight: var(--font-weight-semibold);
 }
 .map-panel-status {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font: 650 13px ui-monospace, Consolas, monospace;
+  gap: var(--spacing-s);
+  color: var(--color-neutral-foreground-2);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-semibold);
 }
 .map-panel-status .fix-indicator { display: block; }
 .map-canvas-wrap {
@@ -46,84 +50,106 @@
   flex: 1 1 auto;
   overflow: hidden;
   background:
-    linear-gradient(rgba(255, 255, 255, .84), rgba(255, 255, 255, .84)),
-    repeating-linear-gradient(0deg, transparent 0 31px, rgba(15, 106, 76, .08) 31px 32px),
-    repeating-linear-gradient(90deg, transparent 0 31px, rgba(15, 106, 76, .08) 31px 32px),
-    #eaf0ec;
+    repeating-linear-gradient(0deg, transparent 0 31px, rgba(36, 36, 36, .06) 31px 32px),
+    repeating-linear-gradient(90deg, transparent 0 31px, rgba(36, 36, 36, .06) 31px 32px),
+    var(--color-neutral-background-4);
 }
 .map-canvas {
   position: absolute;
   inset: 0;
 }
+
+/*
+ * 地図の上に浮かせる知らせと操作。
+ * Fluent 2 の「面を持ち上げる」作法にならい、白面 + 罫線 + 影 8 で
+ * 地図から 1 段浮いていることを示す。
+ */
 .map-loading,
 .map-waiting,
 .map-follow-button,
 .map-error {
   position: absolute;
   z-index: 2;
-  border: 1px solid rgba(16, 35, 30, .14);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .92);
-  box-shadow: 0 5px 18px rgba(16, 35, 30, .12);
-  backdrop-filter: blur(8px);
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 700;
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-circular);
+  background: var(--color-neutral-background-1);
+  box-shadow: var(--shadow-8);
+  color: var(--color-neutral-foreground-1);
+  font-size: var(--font-size-300);
+  line-height: var(--line-height-300);
+  font-weight: var(--font-weight-semibold);
 }
 .map-loading {
   left: 50%;
   top: 50%;
-  padding: 8px 12px;
+  padding: var(--spacing-m-nudge) var(--spacing-l);
   transform: translate(-50%, -50%);
 }
 .map-waiting {
-  left: 12px;
-  top: 12px;
-  padding: 8px 11px;
+  left: var(--spacing-m);
+  top: var(--spacing-m);
+  padding: var(--spacing-s) var(--spacing-m);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-s);
 }
 .map-follow-button {
   left: 50%;
-  bottom: 14px;
-  padding: 8px 13px;
+  bottom: var(--spacing-l);
+  padding: var(--spacing-s) var(--spacing-l);
   transform: translateX(-50%);
+  transition:
+    border-color var(--duration-faster) var(--curve-easy-ease),
+    color var(--duration-faster) var(--curve-easy-ease),
+    background-color var(--duration-faster) var(--curve-easy-ease);
 }
-.map-follow-button:hover { border-color: var(--green); color: var(--green); }
+.map-follow-button:hover {
+  border-color: var(--color-brand-stroke-1);
+  color: var(--color-brand-foreground-1);
+  background: var(--color-brand-background-2);
+}
 
+/* Fluent 2 の MessageBar（intent: error）を地図の上に浮かせたもの */
 .map-error {
-  top: 12px;
+  top: var(--spacing-m);
   left: 50%;
-  max-width: min(520px, calc(100% - 90px));
-  padding: 8px 13px;
+  max-width: min(560px, calc(100% - 96px));
+  padding: var(--spacing-s) var(--spacing-m);
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-color: #efc1b9;
-  border-radius: 4px;
-  background: rgba(255, 245, 242, .96);
-  color: #8c392f;
+  gap: var(--spacing-m);
+  border-color: var(--color-status-danger-border);
+  border-radius: var(--border-radius-medium);
+  background: var(--color-status-danger-background);
+  color: var(--color-status-danger-foreground);
+  font-weight: var(--font-weight-medium);
 }
 .map-error-close {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: none;
-  font-size: 16px;
+  border-radius: var(--border-radius-medium);
+  font-size: var(--font-size-600);
   line-height: 1;
-  color: #8c392f;
+  color: inherit;
   cursor: pointer;
-  padding: 0 2px;
-  opacity: 0.7;
+  opacity: .75;
 }
 .map-error-close:hover {
   opacity: 1;
+  background: rgba(0, 0, 0, .05);
 }
 .map-position-marker {
   position: relative;
-  width: 28px;
-  height: 28px;
-  filter: drop-shadow(0 2px 3px rgba(16, 35, 30, .24));
+  width: 30px;
+  height: 30px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .28));
 }
 .map-position-heading {
   width: 0;
@@ -132,53 +158,53 @@
   left: 50%;
   top: 0;
   border-right: 5px solid transparent;
-  border-bottom: 14px solid #62746c;
+  border-bottom: 15px solid var(--color-neutral-foreground-3);
   border-left: 5px solid transparent;
   transform: translateX(-50%);
-  transition: opacity 0.2s ease;
+  transition: opacity var(--duration-normal) var(--curve-easy-ease);
 }
 .map-position-marker.no-heading .map-position-heading {
   opacity: 0;
   visibility: hidden;
 }
 .map-position-dot {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   position: absolute;
   left: 50%;
   top: 50%;
-  border: 2.5px solid #fff;
-  border-radius: 50%;
+  border: 2.5px solid var(--color-neutral-background-1);
+  border-radius: var(--border-radius-circular);
   transform: translate(-50%, -50%);
-  background: #718079;
-  box-shadow: 0 0 0 2px rgba(113, 128, 121, .25);
+  background: var(--color-neutral-foreground-3);
+  box-shadow: 0 0 0 2px rgba(97, 97, 97, .25);
 }
-.map-position-marker.fix .map-position-heading { border-bottom-color: var(--green); }
+.map-position-marker.fix .map-position-heading { border-bottom-color: var(--color-brand-background); }
 .map-position-marker.fix .map-position-dot {
-  background: var(--green-bright);
-  box-shadow: 0 0 0 2.5px rgba(38, 182, 122, .24);
+  background: var(--color-brand-accent);
+  box-shadow: 0 0 0 2.5px rgba(33, 158, 112, .26);
 }
-.map-position-marker.float .map-position-heading { border-bottom-color: #9f7912; }
+.map-position-marker.float .map-position-heading { border-bottom-color: var(--color-palette-orange-primary); }
 .map-position-marker.float .map-position-dot {
-  background: var(--yellow);
-  box-shadow: 0 0 0 2.5px rgba(216, 173, 53, .24);
+  background: var(--color-palette-orange-primary);
+  box-shadow: 0 0 0 2.5px rgba(202, 80, 16, .24);
 }
-.map-position-marker.single .map-position-heading { border-bottom-color: #3f705b; }
+.map-position-marker.single .map-position-heading { border-bottom-color: var(--brand-90); }
 .map-position-marker.single .map-position-dot {
-  background: #62aa86;
-  box-shadow: 0 0 0 2.5px rgba(98, 170, 134, .24);
+  background: var(--brand-110);
+  box-shadow: 0 0 0 2.5px rgba(58, 174, 129, .26);
 }
 .map-panel .maplibregl-ctrl-group {
   overflow: hidden;
-  border: 1px solid rgba(16, 35, 30, .14);
-  border-radius: 4px;
-  box-shadow: 0 4px 14px rgba(16, 35, 30, .13);
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-medium);
+  box-shadow: var(--shadow-8);
 }
-.map-panel .maplibregl-ctrl button { width: 30px; height: 30px; }
-.map-panel .maplibregl-ctrl-attrib { font-size: 10px; }
+.map-panel .maplibregl-ctrl button { width: 32px; height: 32px; }
+.map-panel .maplibregl-ctrl-attrib { font-size: var(--font-size-100); }
 
 @media (max-height: 700px) and (min-width: 901px) {
-  .map-panel { min-height: 175px; flex-basis: 190px; }
+  .map-panel { min-height: 200px; flex-basis: 220px; }
 }
 
 /*
@@ -187,14 +213,14 @@
  * 地図の下限を決めてパネルのほうを伸ばす。
  */
 @media (max-width: 900px) {
-  .map-panel { min-height: 330px; height: auto; flex-basis: auto; }
-  .map-canvas-wrap { min-height: 260px; }
+  .map-panel { min-height: 360px; height: auto; flex-basis: auto; }
+  .map-canvas-wrap { min-height: 280px; }
 }
 
 @media (max-width: 620px) {
-  .map-panel { min-height: 300px; }
-  .map-canvas-wrap { min-height: 230px; }
-  .map-panel-heading { padding-inline: 11px; }
+  .map-panel { min-height: 320px; }
+  .map-canvas-wrap { min-height: 240px; }
+  .map-panel-heading { padding-inline: var(--spacing-m); }
 }
 
 /*
@@ -222,8 +248,8 @@
 
 /* 帯は全画面の間だけ切り詰める。削ったぶんはそのまま地図の高さになる */
 .map-panel.is-expanded .map-panel-heading {
-  min-height: 44px;
-  padding-block: 7px;
+  min-height: 48px;
+  padding-block: var(--spacing-s);
 }
 /* パネルが画面そのものになるため、パネル名は自明になる */
 .map-panel.is-expanded .map-panel-heading h3 { display: none; }
@@ -235,55 +261,58 @@
 .map-hud-motion {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font: 650 13px ui-monospace, Consolas, monospace;
+  gap: var(--spacing-s);
+  color: var(--color-neutral-foreground-2);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-semibold);
 }
 .map-hud-motion span + span::before {
   content: '·';
-  margin-right: 8px;
-  color: var(--slate-400);
+  margin-right: var(--spacing-s);
+  color: var(--color-neutral-foreground-4);
 }
 
 /* 受信機が繋がっていないことの知らせ。全画面では接続バーが見えなくなるため */
 .map-hud-alert {
-  padding: 2px 9px;
-  border: 1px solid #efc1b9;
-  border-radius: 999px;
-  background: #fff5f2;
-  color: #8c392f;
-  font-size: 11px;
-  font-weight: 700;
+  padding: var(--spacing-xxs) var(--spacing-m);
+  border: 1px solid var(--color-status-danger-border);
+  border-radius: var(--border-radius-circular);
+  background: var(--color-status-danger-background);
+  color: var(--color-status-danger-foreground);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  font-weight: var(--font-weight-semibold);
 }
 
 /*
  * 全画面の切り替え。
- * 高さはログパネル・軌跡操作のツールバーと同じ 26px に揃える。
+ * 高さはログパネル・軌跡操作のツールバーと同じ 32px（Fluent 2 の medium）に揃える。
  */
 .map-expand-button {
   flex: 0 0 auto;
   box-sizing: border-box;
-  height: 26px;
-  padding: 0 9px;
+  height: 32px;
+  padding: 0 var(--spacing-m);
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background-color: #f8faf8;
-  color: #61706a;
-  font-size: 11px;
-  font-weight: 700;
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-medium);
+  background-color: var(--color-neutral-background-1);
+  color: var(--color-neutral-foreground-1);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
   outline: none;
-  transition: border-color .15s, color .15s, background-color .15s, box-shadow .15s;
+  transition:
+    border-color var(--duration-faster) var(--curve-easy-ease),
+    background-color var(--duration-faster) var(--curve-easy-ease);
 }
 .map-expand-button:hover {
-  border-color: #aebcb6;
-  color: var(--ink);
-  background-color: #f1f4f2;
+  border-color: var(--color-neutral-stroke-accessible);
+  background-color: var(--color-neutral-background-3);
 }
-.map-expand-button:focus-visible {
-  border-color: var(--green);
-  box-shadow: 0 0 0 2px var(--green-soft);
+.map-expand-button:active {
+  background-color: var(--color-neutral-background-5);
 }
 
 /* 全画面の間は背後のページを動かさない */

@@ -13,50 +13,55 @@
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--spacing-s);
 }
 
 /*
  * 見た目はログパネルのツールバーに揃える。
  * どちらも「パネルの見出し行に載る小さな操作群」で、高さが違うと行が不揃いに見えるため。
+ * 高さは Fluent 2 の medium（32px）を採る。small（24px）まで下げると、
+ * 本文を一段大きくした今の型ランプでは文字が枠に収まらない。
  */
 .track-controls select,
 .track-button {
   box-sizing: border-box;
-  height: 26px;
-  min-height: 26px;
-  padding: 0 9px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 var(--spacing-m);
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background-color: #f8faf8;
-  color: #61706a;
+  gap: var(--spacing-s-nudge);
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-medium);
+  background-color: var(--color-neutral-background-1);
+  color: var(--color-neutral-foreground-1);
   font-family: inherit;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
   outline: none;
-  transition: border-color .15s, color .15s, background-color .15s, box-shadow .15s;
+  transition:
+    border-color var(--duration-faster) var(--curve-easy-ease),
+    color var(--duration-faster) var(--curve-easy-ease),
+    background-color var(--duration-faster) var(--curve-easy-ease);
 }
 .track-controls select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  padding-right: 20px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='none' stroke='%2361706a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l3 3 3-3'/%3E%3C/svg%3E");
+  padding-right: 26px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23424242' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 6px center;
-  background-size: 7px 4.5px;
+  background-position: right var(--spacing-s) center;
+  background-size: 9px 5.4px;
 }
-.track-controls select:focus,
-.track-button:focus-visible {
-  border-color: var(--green);
-  box-shadow: 0 0 0 2px var(--green-soft);
+.track-controls select:hover {
+  border-color: var(--color-neutral-stroke-accessible);
+  background-color: var(--color-neutral-background-3);
 }
 .track-button:disabled {
-  opacity: .45;
-  cursor: not-allowed;
+  border-color: var(--color-neutral-stroke-disabled);
+  background-color: var(--color-neutral-background-disabled);
+  color: var(--color-neutral-foreground-disabled);
 }
 
 /*
@@ -67,48 +72,50 @@
  * 状態が変わるたびにボタンの中心がずれ、押した指の下から逃げてしまう。
  */
 .track-button.primary {
-  min-width: 82px;
+  min-width: 96px;
   justify-content: center;
 }
 .track-button.ghost:hover:not(:disabled) {
-  border-color: #aebcb6;
-  color: var(--ink);
-  background-color: #f1f4f2;
+  border-color: var(--color-neutral-stroke-accessible);
+  background-color: var(--color-neutral-background-3);
+}
+.track-button.ghost:active:not(:disabled) {
+  background-color: var(--color-neutral-background-5);
 }
 /* 軌跡を隠している間は、押されていない状態だと分かるよう主張を弱める */
 .track-button[aria-pressed='false'] {
-  color: var(--slate-400);
+  color: var(--color-neutral-foreground-3);
   background-color: transparent;
 }
 
 /* 記録の開始・再開。押すと記録が始まるので、赤い録画点を添える */
 .track-button.start {
-  border-color: #e6c7c2;
-  color: #9a4034;
-  background-color: #fdf4f2;
+  border-color: var(--color-status-danger-border);
+  color: var(--color-status-danger-foreground);
+  background-color: var(--color-status-danger-background);
 }
 .track-button.start:hover {
-  border-color: var(--red);
-  color: #7f3227;
-  background-color: #fbe9e6;
+  border-color: var(--color-status-danger-foreground);
+  background-color: var(--color-status-danger-background-hover);
 }
 
 /* 記録中の停止。現在進行中であることが伝わるよう、点を明滅させる */
 .track-button.stop {
-  border-color: #b9dccb;
-  color: var(--green);
-  background-color: var(--green-soft);
+  border-color: var(--color-brand-stroke-2);
+  color: var(--color-brand-foreground-1);
+  background-color: var(--color-brand-background-2);
 }
 .track-button.stop:hover {
-  border-color: var(--green);
-  background-color: #c2e8d6;
+  border-color: var(--color-brand-stroke-1);
+  background-color: var(--color-brand-background-2-hover);
 }
 
 .track-record-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--red);
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: var(--border-radius-circular);
+  background: var(--color-status-danger-foreground);
 }
 .track-record-dot.recording {
   animation: breathe 1.4s infinite;
@@ -117,10 +124,10 @@
 .track-interval {
   display: flex;
   align-items: center;
-  gap: 5px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
+  gap: var(--spacing-s-nudge);
+  color: var(--color-neutral-foreground-3);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
 }
 
 /*
@@ -130,22 +137,24 @@
 .track-stats {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font: 650 12px ui-monospace, Consolas, monospace;
+  gap: var(--spacing-s);
+  color: var(--color-neutral-foreground-2);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-semibold);
 }
 .track-stats span + span::before {
   content: '·';
-  margin-right: 8px;
-  color: var(--slate-400);
+  margin-right: var(--spacing-s);
+  color: var(--color-neutral-foreground-4);
 }
 
 .track-download {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding-left: 4px;
-  border-left: 1px solid var(--line);
+  gap: var(--spacing-xs);
+  padding-left: var(--spacing-s);
+  border-left: 1px solid var(--color-neutral-stroke-2);
 }
 
 /* 復元と警告の帯。見出しと地図の間に挟むので、パネルの幅いっぱいに敷く */
@@ -153,38 +162,44 @@
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--color-neutral-stroke-2);
 }
 .track-notice {
-  padding: 7px 14px;
+  padding: var(--spacing-m-nudge) var(--spacing-l);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.45;
+  gap: var(--spacing-m);
+  font-size: var(--font-size-300);
+  line-height: var(--line-height-300);
+  font-weight: var(--font-weight-medium);
 }
 .track-notice.restored {
-  background: var(--blue-soft);
-  color: #1e40af;
+  background: var(--color-status-info-background);
+  color: var(--color-status-info-foreground);
 }
 .track-notice.warning {
-  background: #fff5f2;
-  color: #8c392f;
+  background: var(--color-status-danger-background);
+  color: var(--color-status-danger-foreground);
 }
 .track-notice-close {
   flex: 0 0 auto;
-  padding: 0 2px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
+  border-radius: var(--border-radius-medium);
   background: transparent;
   color: inherit;
-  font-size: 16px;
+  font-size: var(--font-size-600);
   line-height: 1;
-  opacity: .65;
+  opacity: .7;
+  transition: opacity var(--duration-faster) var(--curve-easy-ease);
 }
-.track-notice-close:hover { opacity: 1; }
+.track-notice-close:hover { opacity: 1; background: rgba(0, 0, 0, .05); }
 
 @media (max-width: 620px) {
-  .track-notice { padding-inline: 11px; }
+  .track-notice { padding-inline: var(--spacing-m); }
 }

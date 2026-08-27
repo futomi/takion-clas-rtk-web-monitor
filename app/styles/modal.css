@@ -1,84 +1,98 @@
 /* モーダル共通枠・電文詳細・電文リファレンス一覧 */
 
-/* モーダル ダイアログ */
+/* Fluent 2 の Dialog */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 25, 20, .65);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, .4);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: var(--spacing-l);
   z-index: 1000;
-  animation: fadeIn .15s ease-out;
+  animation: fadeIn var(--duration-fast) var(--curve-easy-ease);
 }
 .modal-content {
-  background: #ffffff;
-  color: var(--ink);
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, .2);
-  width: min(680px, 100%);
+  background: var(--color-neutral-background-1);
+  color: var(--color-neutral-foreground-1);
+  border-radius: var(--border-radius-xlarge);
+  border: 1px solid var(--color-neutral-stroke-2);
+  box-shadow: var(--shadow-64);
+  width: min(720px, 100%);
   max-height: 85vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: slideUp .18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideUp var(--duration-normal) var(--curve-decelerate-mid);
 }
 .modal-header {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--line);
+  padding: var(--spacing-l) var(--spacing-xl);
+  border-bottom: 1px solid var(--color-neutral-stroke-2);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  background: #f8faf9;
+  gap: var(--spacing-m);
+  background: var(--color-neutral-background-2);
 }
 .modal-title-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--spacing-m-nudge);
   flex-wrap: wrap;
 }
 .modal-title-group h3 {
   margin: 0;
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--ink);
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-700);
+  line-height: var(--line-height-700);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-foreground-1);
 }
+/* Fluent 2 の Subtle Button（アイコンのみ） */
 .modal-close-btn {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   background: transparent;
-  color: var(--muted);
-  font-size: 20px;
+  color: var(--color-neutral-foreground-2);
+  font-size: var(--font-size-500);
   line-height: 1;
-  padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--border-radius-medium);
   cursor: pointer;
-  transition: all .15s;
+  transition:
+    background-color var(--duration-faster) var(--curve-easy-ease),
+    color var(--duration-faster) var(--curve-easy-ease);
 }
 .modal-close-btn:hover {
-  background: var(--slate-200);
-  color: var(--ink);
+  background: var(--color-subtle-background-hover);
+  color: var(--color-neutral-foreground-1);
+}
+.modal-close-btn:active {
+  background: var(--color-subtle-background-pressed);
 }
 .modal-body {
-  padding: 18px;
+  padding: var(--spacing-xl);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  font-size: 13.5px;
+  gap: var(--spacing-xl);
+  font-size: var(--font-size-400);
+  line-height: var(--line-height-400);
 }
 .modal-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--spacing-s);
 }
 .modal-section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--green);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-brand-foreground-1);
   letter-spacing: .05em;
   text-transform: uppercase;
   margin: 0;
@@ -87,154 +101,174 @@
 .modal-section-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 2px;
+  margin-top: var(--spacing-xxs);
 }
 /* セクション内に置く小さめのボタン */
 .secondary-btn.compact-btn {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 11px;
+  height: 32px;
+  padding: 0 var(--spacing-m);
+  font-size: var(--font-size-200);
 }
 /* 「この電文の意味」の強調ボックス */
 .modal-meaning-box {
-  padding: 10px 12px;
-  border: 1px solid var(--slate-200);
-  border-radius: 4px;
-  background: #f8faf9;
-  color: #0f766e;
-  font-size: 13px;
-  font-weight: 600;
+  padding: var(--spacing-m) var(--spacing-l);
+  border: 1px solid var(--color-brand-stroke-2);
+  border-radius: var(--border-radius-medium);
+  background: var(--color-brand-background-2);
+  color: var(--brand-70);
+  font-size: var(--font-size-400);
+  line-height: var(--line-height-500);
+  font-weight: var(--font-weight-semibold);
 }
 /* タイトル横のアイコン */
 .modal-title-icon {
-  font-size: 18px;
+  font-size: 22px;
+  line-height: 1;
 }
 .modal-description {
   margin: 0;
-  line-height: 1.6;
-  color: #334155;
+  font-size: var(--font-size-400);
+  line-height: 1.7;
+  color: var(--color-neutral-foreground-2);
 }
 .modal-raw-box {
-  background: #11211c;
-  color: #6ee7b7;
-  padding: 10px 12px;
-  border-radius: 4px;
-  font: 12px/1.4 ui-monospace, Consolas, monospace;
+  background: var(--color-dark-background-1);
+  color: var(--brand-120);
+  padding: var(--spacing-m) var(--spacing-l);
+  border-radius: var(--border-radius-medium);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-300);
+  line-height: 1.5;
   overflow-x: auto;
   word-break: break-all;
-  border: 1px solid #234237;
+  border: 1px solid var(--color-dark-stroke-1);
 }
 .fields-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
-  margin-top: 4px;
+  font-size: var(--font-size-300);
+  line-height: var(--line-height-300);
+  margin-top: var(--spacing-xs);
 }
 .fields-table th, .fields-table td {
-  padding: 7px 10px;
+  padding: var(--spacing-s) var(--spacing-m);
   text-align: left;
-  border-bottom: 1px solid var(--slate-200);
+  border-bottom: 1px solid var(--color-neutral-stroke-2);
 }
 .fields-table th {
-  background: var(--slate-100);
-  color: var(--slate-600);
-  font-weight: 700;
-  font-size: 11.5px;
+  background: var(--color-neutral-background-3);
+  color: var(--color-neutral-foreground-2);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-200);
 }
 .fields-table td.field-name {
-  font-weight: 600;
-  color: #1e293b;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-foreground-1);
   white-space: nowrap;
 }
 .fields-table td.field-desc {
-  color: var(--slate-500);
+  color: var(--color-neutral-foreground-2);
 }
 .fields-table-name-col {
-  width: 130px;
+  width: 150px;
 }
 
 /* 辞書リファレンス用 */
 .dict-filter-bar {
   display: flex;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: var(--spacing-s);
+  margin-bottom: var(--spacing-xs);
 }
 .dict-filter-bar input {
   flex: 1;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  font-size: 13px;
+  height: 40px;
+  padding: 0 var(--spacing-m);
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-bottom-color: var(--color-neutral-stroke-accessible);
+  border-radius: var(--border-radius-medium);
+  background: var(--color-neutral-background-1);
+  font-size: var(--font-size-400);
   outline: none;
+  transition: border-color var(--duration-faster) var(--curve-easy-ease);
 }
-.dict-filter-bar input:focus {
-  border-color: var(--green);
-  box-shadow: 0 0 0 2px var(--green-soft);
+.dict-filter-bar input:hover {
+  border-color: var(--color-neutral-stroke-accessible);
+}
+.dict-filter-bar input:focus-visible {
+  border-bottom: 2px solid var(--color-brand-stroke-1);
+  padding-bottom: 1px;
+  box-shadow: none;
 }
 /* カテゴリタブの並び */
 .dict-tab-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--spacing-s);
 }
 .dict-tab {
-  height: 28px;
-  font-size: 11.5px;
+  height: 32px;
+  font-size: var(--font-size-200);
 }
 .dict-tab.active {
-  border-color: var(--green);
-  background-color: var(--green);
-  color: #ffffff;
+  border-color: transparent;
+  background-color: var(--color-brand-background);
+  color: var(--color-neutral-foreground-inverted);
+}
+.dict-tab.active:hover:not(:disabled) {
+  background-color: var(--color-brand-background-hover);
 }
 .dict-grid {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 8px;
+  gap: var(--spacing-m);
+  margin-top: var(--spacing-s);
 }
 .dict-card {
-  padding: 10px 14px;
-  border: 1px solid var(--slate-200);
-  border-radius: 6px;
-  background: #fafcfb;
+  padding: var(--spacing-m) var(--spacing-l);
+  border: 1px solid var(--color-neutral-stroke-2);
+  border-radius: var(--border-radius-large);
+  background: var(--color-neutral-background-2);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--spacing-s);
 }
 .dict-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--spacing-s);
 }
 .dict-card-title-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-s);
+  flex-wrap: wrap;
 }
 .dict-card-title {
-  font-weight: 700;
-  font-size: 13.5px;
-  color: #0f172a;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-500);
+  line-height: var(--line-height-500);
+  color: var(--color-neutral-foreground-1);
 }
 .dict-card-summary {
-  font-size: 12px;
-  color: #047857;
-  font-weight: 600;
+  font-size: var(--font-size-300);
+  line-height: var(--line-height-300);
+  color: var(--color-brand-foreground-1);
+  font-weight: var(--font-weight-semibold);
 }
 .dict-card-desc {
-  font-size: 12.5px;
-  color: var(--slate-600);
-  line-height: 1.45;
+  font-size: var(--font-size-300);
+  color: var(--color-neutral-foreground-2);
+  line-height: 1.6;
 }
 .dict-card-fields {
-  margin-top: 4px;
-  color: var(--slate-500);
-  font-size: 11.5px;
+  margin-top: var(--spacing-xxs);
+  color: var(--color-neutral-foreground-3);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
 }
 .dict-empty {
-  padding: 24px;
-  color: var(--slate-500);
+  padding: var(--spacing-xxl);
+  color: var(--color-neutral-foreground-3);
   text-align: center;
 }

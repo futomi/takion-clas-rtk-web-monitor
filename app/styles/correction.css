@@ -1,62 +1,83 @@
 /* 補正モード切り替えパネル */
 
 .correction-mode-panel {
-  padding: 10px 14px;
+  padding: var(--spacing-m) var(--spacing-l);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-m);
 }
 .mode-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--spacing-m);
 }
 .mode-active-indicator {
-  font-size: 12px;
-  color: var(--muted);
+  color: var(--color-neutral-foreground-3);
+  font-size: var(--font-size-300);
+  line-height: var(--line-height-300);
 }
 .mode-active-indicator strong {
-  color: var(--ink);
+  color: var(--color-neutral-foreground-1);
+  font-weight: var(--font-weight-semibold);
 }
 .mode-toggle-group {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: var(--spacing-m);
 }
+
+/*
+ * Fluent 2 の ToggleButton をカード状に広げたもの。
+ * 選択状態はブランド色の罫線と淡い面で示す。影は付けない
+ * （影で浮かせるとフォーカス表示の二重線と重なって見分けが付かなくなる）。
+ */
 .mode-tab {
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: #f9fbf9;
+  padding: var(--spacing-m) var(--spacing-l);
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-large);
+  background: var(--color-neutral-background-1);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--spacing-m);
   text-align: left;
-  transition: all .15s ease;
+  transition:
+    background-color var(--duration-faster) var(--curve-easy-ease),
+    border-color var(--duration-faster) var(--curve-easy-ease);
 }
 .mode-tab:hover {
-  background: #f0f5f2;
-  border-color: #bccbc4;
+  background: var(--color-neutral-background-3);
+  border-color: var(--color-neutral-stroke-accessible);
+}
+.mode-tab:active {
+  background: var(--color-neutral-background-5);
 }
 .mode-tab.active {
-  border-color: var(--green);
-  background: #f0f8f4;
-  box-shadow: 0 0 0 2px var(--green-soft);
+  border-color: var(--color-brand-stroke-1);
+  background: var(--color-brand-background-2);
+}
+.mode-tab.active:hover {
+  background: var(--color-brand-background-2-hover);
 }
 .mode-icon {
-  font-size: 20px;
+  font-size: 22px;
+  line-height: 1;
   flex: 0 0 auto;
 }
 .mode-tab strong {
   display: block;
-  font-size: 13px;
-  color: var(--ink);
+  color: var(--color-neutral-foreground-1);
+  font-size: var(--font-size-400);
+  line-height: var(--line-height-400);
+  font-weight: var(--font-weight-semibold);
 }
 .mode-tab small {
   display: block;
-  font-size: 11px;
-  color: var(--muted);
+  margin-top: var(--spacing-xxs);
+  color: var(--color-neutral-foreground-3);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
 }
-
-/* NTRIP 設定 & 接続パネル */
+.mode-tab.active small {
+  color: var(--color-neutral-foreground-2);
+}

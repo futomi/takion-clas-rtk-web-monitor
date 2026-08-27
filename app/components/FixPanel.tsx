@@ -61,7 +61,7 @@ export default function FixPanel({ telemetry, activeSource, quality, connection,
   const rating = telemetry.pdop === undefined ? null : dopRating(telemetry.pdop);
 
   return (
-    <article className="panel">
+    <article className="fix-panel panel">
       <div className="panel-heading">
         <div className="panel-title-with-badge">
           <h3>測位ステータス</h3>
@@ -82,28 +82,35 @@ export default function FixPanel({ telemetry, activeSource, quality, connection,
         </div>
       </div>
 
-      <div className="satellites-section">
-        <SatelliteGroup
-          title="使用衛星"
-          total={telemetry.satellitesUsed}
-          breakdown={telemetry.satellitesUsedBreakdown}
-        />
-        <SatelliteGroup
-          title="可視衛星"
-          total={telemetry.satellitesInView}
-          breakdown={telemetry.satellitesInViewBreakdown}
-        />
-      </div>
-
-      <div className="dop-container">
-        <div className="dop-header">
-          <span className="dop-title">衛星配置・精度低下率 (DOP)</span>
-          {rating && <span className={`dop-status-tag ${rating.tone}`}>{rating.label}</span>}
+      {/*
+        衛星の内訳と DOP をひと括りにしておく。
+        パネルが全画面幅まで広がったときだけ、この 2 つを左右に並べ替える。
+        縦に積んだままだと、どちらも幅が有り余って間延びしてしまう。
+      */}
+      <div className="fix-detail">
+        <div className="satellites-section">
+          <SatelliteGroup
+            title="使用衛星"
+            total={telemetry.satellitesUsed}
+            breakdown={telemetry.satellitesUsedBreakdown}
+          />
+          <SatelliteGroup
+            title="可視衛星"
+            total={telemetry.satellitesInView}
+            breakdown={telemetry.satellitesInViewBreakdown}
+          />
         </div>
-        <div className="dop-grid">
-          <DopCard label="HDOP" unit="水平" value={telemetry.hdop} />
-          <DopCard label="PDOP" unit="3D" value={telemetry.pdop} primary />
-          <DopCard label="VDOP" unit="垂直" value={telemetry.vdop} />
+
+        <div className="dop-container">
+          <div className="dop-header">
+            <span className="dop-title">衛星配置・精度低下率 (DOP)</span>
+            {rating && <span className={`dop-status-tag ${rating.tone}`}>{rating.label}</span>}
+          </div>
+          <div className="dop-grid">
+            <DopCard label="HDOP" unit="水平" value={telemetry.hdop} />
+            <DopCard label="PDOP" unit="3D" value={telemetry.pdop} primary />
+            <DopCard label="VDOP" unit="垂直" value={telemetry.vdop} />
+          </div>
         </div>
       </div>
     </article>

@@ -1,4 +1,4 @@
-/* リセット・デザイントークン・全体レイアウト・ヘッダー・パネル共通 */
+/* リセット・Fluent 2 デザイントークン・全体レイアウト・ヘッダー・パネル共通 */
 
 /*
  * ベースリセット。
@@ -42,7 +42,7 @@
   }
 
   code, kbd, samp, pre {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-family: var(--font-family-monospace);
     font-size: 1em;
   }
 
@@ -80,6 +80,7 @@
   }
 
   ::placeholder {
+    color: var(--color-neutral-foreground-4);
     opacity: 1;
   }
 
@@ -100,138 +101,405 @@
 }
 
 
+/*
+ * ===========================================================================
+ * Fluent 2 デザイントークン
+ * ===========================================================================
+ *
+ * Microsoft Fluent 2 Design System のトークン体系をそのまま持ち込んでいる。
+ * 名前も Fluent の colorNeutralBackground1 等に対応させてあるので、
+ * 迷ったときは Fluent 2 のドキュメントをそのまま参照できる。
+ *
+ * 色は「ニュートラル ramp」と「ブランド ramp」の 2 系統だけを土台にし、
+ * 画面ごとの色は必ずこのどちらかのエイリアスとして定義する。
+ * 個別の画面から生の 16 進数を書かないことで、配色の変更が 1 か所で済む。
+ */
 :root {
-  --ink: #10231e;
-  --muted: #66746f;
-  --line: #d8e1dc;
-  --paper: #eef2ef;
-  --surface: #ffffff;
-  --green: #0f6a4c;
-  --green-bright: #26b67a;
-  --green-soft: #ddf2e8;
-  --yellow: #d8ad35;
-  --red: #c85345;
-  --blue: #2563eb;
-  --blue-soft: #dbeafe;
-
-  /* 本文より一段淡い補助文字。--muted よりさらに主張を抑えたいラベルに使う */
-  --muted-soft: #72807b;
+  /* --- タイポグラフィ ------------------------------------------------- */
 
   /*
-   * 中間色のグレースケール。
-   * Tailwind を外した際にそのまま残った slate 系の値で、罫線・補助文字・
-   * 淡い背景として繰り返し使われていたものを名前付きで一元化した。
+   * Fluent 2 の標準書体は Segoe UI Variable。
+   * 日本語は Windows の UI 書体である Yu Gothic UI が Segoe UI と設計が揃うため、
+   * 欧文・和文の順に並べて字面の大きさを合わせる。
    */
-  --slate-50: #f8fafc;
-  --slate-100: #f1f5f9;
-  --slate-200: #e2e8f0;
-  --slate-400: #94a3b8;
-  --slate-500: #64748b;
-  --slate-600: #475569;
+  --font-family-base:
+    "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont,
+    "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  /* 見出し用。Segoe UI Variable は光学サイズ別に 3 種の実体を持つ */
+  --font-family-display:
+    "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI",
+    -apple-system, BlinkMacSystemFont, "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP",
+    system-ui, sans-serif;
+  /* 数値・電文など、桁を縦に揃えたいものだけに使う */
+  --font-family-monospace:
+    "Cascadia Mono", Consolas, ui-monospace, SFMono-Regular, Menlo,
+    "Liberation Mono", "Courier New", monospace;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /*
+   * 型ランプ。
+   *
+   * Fluent 2 の Caption2(10) / Caption1(12) / Body1(14) / Body2(16) /
+   * Subtitle1(20) / Title3(24) を土台に、全体を一段上へずらしたもの。
+   * 素の Fluent ランプは最小 10px まで下がり、情報密度の高いこの画面では
+   * 読み取れなかったため、下限を 12px に上げてある。
+   *
+   * 13px と 15px は Fluent には無い段。1 枚のパネルに「見出し・値・単位・注記」
+   * まで詰め込む画面のため、Fluent の刻みだけでは階層を足りるだけ作れない。
+   * 増やすのはここまでとし、これ以上の中間値は足さない。
+   *
+   * 行の高さは Fluent と同じく px 固定にして、行送りが書体に振られないようにする。
+   */
+  --font-size-100: 12px;  /* 最小。チップ内の種別名など */
+  --line-height-100: 16px;
+  --font-size-200: 13px;  /* 補助ラベル・注記 */
+  --line-height-200: 18px;
+  --font-size-300: 14px;  /* 既定の本文 */
+  --line-height-300: 20px;
+  --font-size-400: 15px;  /* 数値・操作ラベル */
+  --line-height-400: 20px;
+  --font-size-500: 16px;  /* 本文（強調） */
+  --line-height-500: 22px;
+  --font-size-600: 18px;  /* 小見出し */
+  --line-height-600: 24px;
+  --font-size-700: 20px;  /* パネル見出し */
+  --line-height-700: 26px;
+  --font-size-800: 24px;  /* アプリ名 */
+  --line-height-800: 32px;
+
+  /* --- ブランド ramp --------------------------------------------------- */
+
+  /*
+   * Fluent 2 の Communication Blue ramp と同じ 16 段構成を、
+   * このアプリの識別色である緑で組み直したもの。
+   * 主色は Fluent と同じく 80、ホバーは 70、押下は 60 を使う。
+   */
+  --brand-10: #04170f;
+  --brand-20: #062318;
+  --brand-30: #082f20;
+  --brand-40: #093c29;
+  --brand-50: #0b4832;
+  --brand-60: #0c553b;
+  --brand-70: #0e5f43;
+  --brand-80: #0f6a4c;
+  --brand-90: #17845d;
+  --brand-100: #219e70;
+  --brand-110: #3aae81;
+  --brand-120: #52bb91;
+  --brand-130: #7accab;
+  --brand-140: #a6dcc5;
+  --brand-150: #c9ebda;
+  --brand-160: #e8f6ef;
+
+  /* --- ニュートラル ramp（Fluent 2 ライトテーマ） ---------------------- */
+  --color-neutral-background-1: #ffffff;
+  --color-neutral-background-2: #fafafa;
+  --color-neutral-background-3: #f5f5f5;
+  --color-neutral-background-4: #f0f0f0;
+  --color-neutral-background-5: #ebebeb;
+  --color-neutral-background-6: #e6e6e6;
+  --color-neutral-background-inverted: #292929;
+  --color-neutral-background-disabled: #f0f0f0;
+
+  --color-neutral-foreground-1: #242424;
+  --color-neutral-foreground-2: #424242;
+  --color-neutral-foreground-3: #616161;
+  --color-neutral-foreground-4: #707070;
+  --color-neutral-foreground-disabled: #bdbdbd;
+  --color-neutral-foreground-inverted: #ffffff;
+
+  --color-neutral-stroke-1: #d1d1d1;
+  --color-neutral-stroke-2: #e0e0e0;
+  --color-neutral-stroke-3: #f0f0f0;
+  --color-neutral-stroke-accessible: #616161;
+  --color-neutral-stroke-disabled: #e0e0e0;
+
+  /* 背景を持たない操作（アイコンボタン等）のホバー・押下 */
+  --color-subtle-background-hover: #f5f5f5;
+  --color-subtle-background-pressed: #e0e0e0;
+
+  /* --- ブランドのエイリアス ------------------------------------------- */
+  --color-brand-foreground-1: var(--brand-80);
+  --color-brand-foreground-link: var(--brand-70);
+  --color-brand-background: var(--brand-80);
+  --color-brand-background-hover: var(--brand-70);
+  --color-brand-background-pressed: var(--brand-60);
+  --color-brand-background-2: var(--brand-160);
+  --color-brand-background-2-hover: var(--brand-150);
+  --color-brand-stroke-1: var(--brand-80);
+  --color-brand-stroke-2: var(--brand-140);
+  --color-brand-accent: var(--brand-100);
+
+  /* --- 状態色（Fluent 2 Shared colors） ------------------------------- */
+  --color-status-success-foreground: #0e700e;
+  --color-status-success-background: #f1faf1;
+  --color-status-success-border: #9fd89f;
+
+  --color-status-warning-foreground: #bc4b09;
+  --color-status-warning-background: #fff9f5;
+  --color-status-warning-border: #fdcfb4;
+
+  --color-status-danger-foreground: #b10e1c;
+  --color-status-danger-background: #fdf3f4;
+  --color-status-danger-background-hover: #f9dfe2;
+  --color-status-danger-border: #eeacb2;
+
+  --color-status-info-foreground: #0f6cbd;
+  --color-status-info-background: #ebf3fc;
+  --color-status-info-border: #b4d6fa;
+
+  /* --- 分類色（Fluent 2 Shared colors） ------------------------------- */
+
+  /*
+   * 良し悪しを表さない「種類の違い」だけに使う色。
+   * 衛星システム別のチップと、電文カテゴリのバッジで共有する。
+   * 状態色（success / warning / danger）を種類の区別に流用すると、
+   * 色そのものが持つ「良い・悪い」の意味と衝突するため分けてある。
+   *
+   * primary は濃い面に載せる塗り、foreground / background / border は
+   * 明るい面に載せる淡いチップ用の組。
+   */
+  --color-palette-blue-primary: #0f6cbd;
+  --color-palette-blue-foreground: #0f6cbd;
+  --color-palette-blue-background: #ebf3fc;
+  --color-palette-blue-border: #b4d6fa;
+
+  --color-palette-purple-primary: #8764b8;
+  --color-palette-purple-foreground: #5c2e91;
+  --color-palette-purple-background: #f7f4fb;
+  --color-palette-purple-border: #d8cbea;
+
+  --color-palette-teal-primary: #038387;
+  --color-palette-teal-foreground: #005b70;
+  --color-palette-teal-background: #eef9fb;
+  --color-palette-teal-border: #9cd8e3;
+
+  --color-palette-orange-primary: #ca5010;
+  --color-palette-orange-foreground: #bc4b09;
+  --color-palette-orange-background: #fff9f5;
+  --color-palette-orange-border: #fdcfb4;
+
+  --color-palette-green-primary: #107c41;
+  --color-palette-green-foreground: #0e700e;
+  --color-palette-green-background: #f1faf1;
+  --color-palette-green-border: #9fd89f;
+
+  --color-palette-cornflower-primary: #4f6bed;
+
+  /* --- 暗い面（受信ログ端末・生データ枠） ----------------------------- */
+
+  /*
+   * Fluent 2 の「ダークテーマ」側のニュートラル ramp。
+   *
+   * 明るい面のトークンを反転させて作るのではなく、ダークテーマ用に
+   * 定義された値をそのまま持ってくる。Fluent は明暗で面と文字の
+   * 明度差の付け方を変えており、単純な反転では意図した階調にならない。
+   */
+  --color-dark-background-1: #1f1f1f;
+  --color-dark-background-2: #2e2e2e;
+  --color-dark-stroke-1: #3d3d3d;
+  /* 暗い面の上で行を区切る線。面の色に依らず薄く重なるよう透過で持つ */
+  --color-dark-stroke-subtle: rgba(255, 255, 255, .08);
+  --color-dark-foreground-1: #ffffff;
+  --color-dark-foreground-2: #d6d6d6;
+  --color-dark-foreground-3: #adadad;
+  --color-dark-scrollbar: #5c5c5c;
+  /* 暗い面に載せる danger。明るい面用の #b10e1c では沈んで読めない */
+  --color-status-danger-foreground-dark: #f1707b;
+
+  /* --- 角丸（Fluent 2 borderRadius） ---------------------------------- */
+  --border-radius-none: 0;
+  --border-radius-small: 2px;
+  --border-radius-medium: 4px;
+  --border-radius-large: 6px;
+  --border-radius-xlarge: 8px;
+  --border-radius-circular: 10000px;
+
+  /* --- 余白（Fluent 2 spacing） --------------------------------------- */
+  --spacing-xxs: 2px;
+  --spacing-xs: 4px;
+  --spacing-s-nudge: 6px;
+  --spacing-s: 8px;
+  --spacing-m-nudge: 10px;
+  --spacing-m: 12px;
+  --spacing-l: 16px;
+  --spacing-xl: 20px;
+  --spacing-xxl: 24px;
+
+  /* --- エレベーション（Fluent 2 shadow） ------------------------------ */
+  --shadow-2: 0 0 2px rgba(0, 0, 0, .12), 0 1px 2px rgba(0, 0, 0, .14);
+  --shadow-4: 0 0 2px rgba(0, 0, 0, .12), 0 2px 4px rgba(0, 0, 0, .14);
+  --shadow-8: 0 0 2px rgba(0, 0, 0, .12), 0 4px 8px rgba(0, 0, 0, .14);
+  --shadow-16: 0 0 2px rgba(0, 0, 0, .12), 0 8px 16px rgba(0, 0, 0, .14);
+  --shadow-28: 0 0 8px rgba(0, 0, 0, .12), 0 14px 28px rgba(0, 0, 0, .14);
+  --shadow-64: 0 0 8px rgba(0, 0, 0, .20), 0 32px 64px rgba(0, 0, 0, .24);
+
+  /* --- モーション（Fluent 2 duration / curve） ------------------------ */
+  --duration-faster: 100ms;
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --curve-easy-ease: cubic-bezier(.33, 0, .67, 1);
+  --curve-decelerate-mid: cubic-bezier(.1, .9, .2, 1);
+
+  /* --- フォーカス ------------------------------------------------------ */
+  /*
+   * Fluent 2 のフォーカス表示は「内側 1px の白 + 外側 2px の黒」の二重線。
+   * 明るい面でも暗い面でもどちらかの線が必ず見えるので、
+   * 面の色ごとに指定を書き分けずに済む。
+   */
+  --color-stroke-focus-1: #ffffff;
+  --color-stroke-focus-2: #000000;
+  --focus-ring: 0 0 0 1px var(--color-stroke-focus-1), 0 0 0 3px var(--color-stroke-focus-2);
 }
 
-html { min-height: 100%; background: var(--paper); }
+html { min-height: 100%; background: var(--color-neutral-background-3); }
 body {
   min-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  background: var(--color-neutral-background-3);
+  color: var(--color-neutral-foreground-1);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-300);
+  line-height: var(--line-height-300);
+  font-weight: var(--font-weight-regular);
   -webkit-font-smoothing: antialiased;
 }
 button, select, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 
+/*
+ * フォーカス表示はアプリ全体で 1 つに揃える。
+ * 個々の操作ごとに書くと、後から足した操作だけ表示が抜ける事故が起きる。
+ */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .app-shell {
   width: min(1540px, 100%);
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 0 18px 24px;
+  padding: 0 var(--spacing-xxl) var(--spacing-xxl);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--spacing-m);
 }
 
 .topbar {
-  flex: 0 0 56px;
+  flex: 0 0 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(16, 35, 30, .12);
+  border-bottom: 1px solid var(--color-neutral-stroke-2);
 }
 .brand-lockup, .header-status, .device-name {
   display: flex;
   align-items: center;
 }
-.brand-lockup { gap: 10px; }
+.brand-lockup { gap: var(--spacing-m); }
 .brand-lockup h1 {
   margin: 1px 0 0;
-  font: 700 20px/1 system-ui, sans-serif;
-  letter-spacing: -.025em;
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-800);
+  line-height: var(--line-height-800);
+  font-weight: var(--font-weight-semibold);
 }
 .eyebrow, .card-label {
   margin: 0;
-  color: var(--green);
-  font: 700 12px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace;
-  letter-spacing: .15em;
+  color: var(--color-brand-foreground-1);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: .06em;
 }
 .brand-mark {
   position: relative;
-  width: 31px;
-  height: 31px;
-  border: 2px solid var(--green);
-  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--color-brand-foreground-1);
+  border-radius: var(--border-radius-circular);
 }
 .brand-mark::before, .brand-mark::after, .brand-mark span {
   content: '';
   position: absolute;
-  border: 1px solid var(--green);
-  border-radius: 50%;
+  border: 1px solid var(--color-brand-foreground-1);
+  border-radius: var(--border-radius-circular);
 }
 .brand-mark::before { inset: 5px; }
-.brand-mark::after { inset: 10px; background: var(--green); }
-.brand-mark span { width: 3px; height: 3px; top: -4px; left: 12px; background: var(--green); }
-.header-status { gap: 12px; }
+.brand-mark::after { inset: 11px; background: var(--color-brand-foreground-1); }
+.brand-mark span {
+  width: 3px;
+  height: 3px;
+  top: -4px;
+  left: 13px;
+  background: var(--color-brand-foreground-1);
+}
+.header-status { gap: var(--spacing-m); }
+
+/* Fluent 2 の Badge に倣った接続状態チップ */
 .connection-chip {
-  min-width: 92px;
-  padding: 7px 12px;
+  min-width: 116px;
+  height: 32px;
+  padding: 0 var(--spacing-m);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .75);
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
+  gap: var(--spacing-s);
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-circular);
+  background: var(--color-neutral-background-1);
+  color: var(--color-neutral-foreground-2);
+  font-size: var(--font-size-300);
+  line-height: var(--line-height-300);
+  font-weight: var(--font-weight-semibold);
 }
 .status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #9ca8a3;
-  box-shadow: 0 0 0 3px #e7ebe9;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: var(--border-radius-circular);
+  background: var(--color-neutral-foreground-4);
+  box-shadow: 0 0 0 3px var(--color-neutral-background-4);
 }
-.connection-chip.connected { color: var(--green); border-color: #b9dccb; }
+.connection-chip.connected {
+  color: var(--color-brand-foreground-1);
+  border-color: var(--color-brand-stroke-2);
+  background: var(--color-brand-background-2);
+}
 .connection-chip.connected .status-dot {
-  background: var(--green-bright);
-  box-shadow: 0 0 0 3px var(--green-soft);
+  background: var(--color-brand-accent);
+  box-shadow: 0 0 0 3px var(--brand-150);
   animation: breathe 1.8s infinite;
+}
+.connection-chip.connecting,
+.connection-chip.disconnecting {
+  color: var(--color-status-warning-foreground);
+  border-color: var(--color-status-warning-border);
+  background: var(--color-status-warning-background);
 }
 .connection-chip.connecting .status-dot,
 .connection-chip.disconnecting .status-dot {
-  background: var(--yellow);
-  box-shadow: 0 0 0 3px #f5eccf;
+  background: var(--color-status-warning-foreground);
+  box-shadow: 0 0 0 3px var(--color-status-warning-border);
 }
 
+/*
+ * Fluent 2 の Card に相当する面。
+ * 罫線と影を重ねて「地」から 1 枚浮かせる。影だけでは輪郭が曖昧になり、
+ * 罫線だけでは面の重なり順が読み取れないため、両方を使う。
+ */
 .panel {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface);
-  box-shadow: 0 7px 24px rgba(28, 57, 46, .045);
+  border: 1px solid var(--color-neutral-stroke-2);
+  border-radius: var(--border-radius-xlarge);
+  background: var(--color-neutral-background-1);
+  box-shadow: var(--shadow-4);
 }
 
 /*

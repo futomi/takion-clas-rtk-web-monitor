@@ -1,8 +1,20 @@
 /* 受信ログパネル（ツールバー・端末表示・ログ行・種別バッジ） */
 
+/*
+ * 端末表示だけは暗い面になるので、色は base.css のダーク面トークンから採る。
+ * ここでは役割名（terminal-*）へ言い換えるだけに留め、値は持たない。
+ */
 .log-panel {
+  --terminal-background: var(--color-dark-background-1);
+  --terminal-foreground-1: var(--color-dark-foreground-1);
+  --terminal-foreground-2: var(--color-dark-foreground-2);
+  --terminal-foreground-3: var(--color-dark-foreground-3);
+  --terminal-stroke: var(--color-dark-stroke-subtle);
+  /* 暗い面ではブランドの主色（80）は沈むため、明るい側の 120 を使う */
+  --terminal-accent: var(--brand-120);
+
   flex: 0 0 auto;
-  padding: 12px 14px;
+  padding: var(--spacing-l);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -10,23 +22,27 @@
 .log-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: var(--spacing-s);
 }
+
+/*
+ * ツールバーの操作は Fluent 2 の Secondary Button（medium / 32px）に揃える。
+ * 見出し行に載る操作群なので、軌跡の記録操作・全画面ボタンとも同じ高さにする。
+ */
 .log-actions button,
 .log-actions select {
   box-sizing: border-box;
-  height: 26px;
-  min-height: 26px;
-  max-height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background-color: #f8faf8;
-  color: #61706a;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 var(--spacing-m);
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-medium);
+  background-color: var(--color-neutral-background-1);
+  color: var(--color-neutral-foreground-1);
   font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 24px;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
   outline: none;
   cursor: pointer;
   display: inline-flex;
@@ -35,78 +51,88 @@
   white-space: nowrap;
   vertical-align: middle;
   margin: 0;
-  transition: border-color .15s, color .15s, background-color .15s, box-shadow .15s;
+  transition:
+    border-color var(--duration-faster) var(--curve-easy-ease),
+    color var(--duration-faster) var(--curve-easy-ease),
+    background-color var(--duration-faster) var(--curve-easy-ease);
 }
 .log-actions select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  padding-right: 20px;
-  padding-left: 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='none' stroke='%2361706a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l3 3 3-3'/%3E%3C/svg%3E");
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23424242' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 6px center;
-  background-size: 7px 4.5px;
+  background-position: right var(--spacing-s) center;
+  background-size: 9px 5.4px;
 }
 .log-actions button:hover,
 .log-actions select:hover {
-  border-color: #aebcb6;
-  color: var(--ink);
-  background-color: #f1f4f2;
+  border-color: var(--color-neutral-stroke-accessible);
+  background-color: var(--color-neutral-background-3);
 }
-.log-actions select:hover {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='none' stroke='%2310231e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l3 3 3-3'/%3E%3C/svg%3E");
-}
-.log-actions select:focus {
-  border-color: var(--green);
-  box-shadow: 0 0 0 2px var(--green-soft);
+.log-actions button:active,
+.log-actions select:active {
+  background-color: var(--color-neutral-background-5);
 }
 .log-actions select option {
-  background: #ffffff;
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 500;
+  background: var(--color-neutral-background-1);
+  color: var(--color-neutral-foreground-1);
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-regular);
 }
+/* 電文リファレンスだけはブランド色に寄せ、他の絞り込みと役割が違うことを示す */
 .log-actions button.dict-btn {
-  background-color: #f0fdf4;
-  border-color: #bbf7d0;
-  color: #166534;
-  font-weight: 700;
+  background-color: var(--color-brand-background-2);
+  border-color: var(--color-brand-stroke-2);
+  color: var(--color-brand-foreground-1);
 }
 .log-actions button.dict-btn:hover {
-  background-color: #dcfce7;
-  border-color: #86efac;
+  background-color: var(--color-brand-background-2-hover);
+  border-color: var(--color-brand-stroke-1);
 }
 /* ツールバー内のセレクト・ボタン共通 */
 .log-control {
-  font-size: 11px;
-  line-height: 24px;
+  font-size: var(--font-size-200);
 }
 
 .log-summary {
   flex: 0 0 auto;
-  margin: 8px 0 7px;
+  margin: var(--spacing-m) 0 var(--spacing-m-nudge);
   display: grid;
-  grid-template-columns: 90px 100px 1fr;
+  grid-template-columns: 108px 120px 1fr;
   align-items: end;
-  gap: 10px;
+  gap: var(--spacing-m);
 }
-.log-summary > div:not(.sentence-chips) span { display: block; color: #87938e; font-size: 11px; }
-.log-summary > div:not(.sentence-chips) strong { font: 650 15px ui-monospace, Consolas, monospace; }
+.log-summary > div:not(.sentence-chips) span {
+  display: block;
+  color: var(--color-neutral-foreground-3);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+}
+.log-summary > div:not(.sentence-chips) strong {
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-600);
+  line-height: var(--line-height-600);
+  font-weight: var(--font-weight-semibold);
+}
 .sentence-chips {
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--spacing-xs);
 }
 .sentence-chips span {
-  padding: 3px 5px;
-  border-radius: 2px;
-  background: #edf2ef;
-  color: #63716b;
-  font: 700 11px ui-monospace, Consolas, monospace;
+  padding: var(--spacing-xxs) var(--spacing-s);
+  border-radius: var(--border-radius-medium);
+  background: var(--color-neutral-background-3);
+  color: var(--color-neutral-foreground-2);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  font-weight: var(--font-weight-semibold);
 }
-.sentence-chips b { color: var(--green); }
+.sentence-chips b { color: var(--color-brand-foreground-1); }
 
 .terminal-wrapper {
   position: relative;
@@ -116,124 +142,140 @@
 }
 
 .terminal {
-  height: 250px;
-  max-height: 320px;
+  height: 300px;
+  max-height: 380px;
   flex: 0 0 auto;
   overflow-y: auto;
   overflow-x: hidden;
-  border-radius: 4px;
-  background: #0f1c18;
-  color: #d0e3da;
-  scrollbar-color: #3d574c #0f1c18;
-}
-
-/* キーボードでスクロールできるようフォーカスを受けるので、当たっている位置を示す */
-.terminal:focus-visible {
-  outline: 2px solid var(--green-bright);
-  outline-offset: 2px;
+  border-radius: var(--border-radius-large);
+  background: var(--terminal-background);
+  color: var(--terminal-foreground-2);
+  scrollbar-color: var(--color-dark-scrollbar) var(--terminal-background);
 }
 
 .scroll-to-latest-btn {
   position: absolute;
-  bottom: 12px;
-  right: 16px;
+  bottom: var(--spacing-m);
+  right: var(--spacing-l);
   z-index: 10;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(38, 182, 122, 0.45);
-  background: rgba(15, 28, 24, 0.92);
+  gap: var(--spacing-s-nudge);
+  height: 32px;
+  padding: 0 var(--spacing-l);
+  border-radius: var(--border-radius-circular);
+  border: 1px solid var(--terminal-accent);
+  background: rgba(31, 31, 31, .94);
   backdrop-filter: blur(6px);
-  color: #4ade80;
+  color: var(--terminal-accent);
   font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 700;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--shadow-16);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    background-color var(--duration-faster) var(--curve-easy-ease),
+    color var(--duration-faster) var(--curve-easy-ease);
 }
 
 .scroll-to-latest-btn:hover {
-  background: #0a1f18;
-  border-color: #26b67a;
-  color: #86efac;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  background: var(--color-dark-background-2);
+  color: var(--brand-130);
 }
 .terminal-empty {
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  color: #789087;
-  font: 13px ui-monospace, Consolas, monospace;
+  gap: var(--spacing-m-nudge);
+  padding: 0 var(--spacing-l);
+  color: var(--terminal-foreground-3);
+  font-size: var(--font-size-400);
+  line-height: var(--line-height-400);
 }
-.terminal-cursor { width: 6px; height: 11px; background: var(--green-bright); animation: blink 1s steps(2) infinite; }
+.terminal-cursor {
+  width: 7px;
+  height: 14px;
+  flex: 0 0 auto;
+  background: var(--terminal-accent);
+  animation: blink 1s steps(2) infinite;
+}
 
 /* ログ行 基本スタイル */
 .log-line {
-  padding: 6px 9px;
-  border-bottom: 1px solid rgba(255, 255, 255, .05);
-  font: 12px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
-  transition: background-color .12s;
+  padding: var(--spacing-s) var(--spacing-m);
+  border-bottom: 1px solid var(--terminal-stroke);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-300);
+  line-height: 1.45;
+  transition: background-color var(--duration-faster) var(--curve-easy-ease);
   cursor: pointer;
 }
 .log-line:hover {
-  background-color: rgba(255, 255, 255, .045);
-}
-/* キーボード操作時だけ、どの行に居るかを示す */
-.log-line:focus-visible {
-  outline: 2px solid #38bdf8;
-  outline-offset: -2px;
   background-color: rgba(255, 255, 255, .06);
+}
+/*
+ * キーボード操作時だけ、どの行に居るかを示す。
+ * 端末は横をはみ出させない領域なので、共通のフォーカス表示（外側へ広がる影）は
+ * 左右が切り落とされてしまう。ここだけは内側へ引いた輪郭線にする。
+ */
+.log-line:focus-visible {
+  outline: 2px solid var(--terminal-foreground-1);
+  outline-offset: -2px;
+  box-shadow: none;
+  background-color: rgba(255, 255, 255, .08);
 }
 
 /* 生ログのみ表示モード (RAW) */
 .log-line-raw {
   display: grid;
-  grid-template-columns: 74px 72px minmax(0, 1fr) 28px;
-  gap: 8px;
+  grid-template-columns: 96px 88px minmax(0, 1fr) 40px;
+  gap: var(--spacing-m);
   align-items: baseline;
 }
-.log-line-raw time { color: #688078; font-size: 11.5px; }
+.log-line-raw time { color: var(--terminal-foreground-3); font-size: var(--font-size-200); }
 .log-line-raw .log-type {
   overflow: hidden;
-  color: #61c798;
-  font-weight: 700;
+  color: var(--terminal-accent);
+  font-weight: var(--font-weight-bold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.log-line-raw code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #cbd5e1; }
+.log-line-raw code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--terminal-foreground-2);
+}
 
 /* 解説付きモード (EXPLAINED) */
 .log-line-explained {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--spacing-xs);
 }
 .log-line-header {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--spacing-s);
   min-width: 0;
 }
 .log-line-header time {
-  color: #688078;
-  font-size: 11.5px;
+  color: var(--terminal-foreground-3);
+  font-size: var(--font-size-200);
   flex: 0 0 auto;
 }
 .log-title-ja {
-  font-weight: 700;
-  color: var(--slate-100);
-  font-size: 12px;
+  font-family: var(--font-family-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--terminal-foreground-1);
+  font-size: var(--font-size-300);
   white-space: nowrap;
 }
 .log-meaning-summary {
-  color: var(--slate-400);
-  font-size: 11.5px;
+  font-family: var(--font-family-base);
+  color: var(--terminal-foreground-3);
+  font-size: var(--font-size-200);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -241,79 +283,71 @@
   min-width: 0;
 }
 .log-raw-secondary {
-  color: #6ee7b7;
-  font-size: 11px;
-  opacity: .75;
+  color: var(--terminal-accent);
+  font-size: var(--font-size-200);
+  opacity: .8;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding-left: 2px;
+  padding-left: var(--spacing-xxs);
 }
 
 /* 日本語要約のみモード (SUMMARY) */
 .log-line-summary {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-s);
   min-width: 0;
 }
 .log-line-summary time {
-  color: #688078;
-  font-size: 11.5px;
+  color: var(--terminal-foreground-3);
+  font-size: var(--font-size-200);
   flex: 0 0 auto;
 }
-.log-line-summary .log-title-ja {
-  font-weight: 700;
-  color: var(--slate-50);
-}
 .log-line-summary .log-meaning-summary {
-  color: #a7f3d0;
+  color: var(--brand-130);
   flex: 1;
 }
 
-/* カテゴリ別・種別バッジ */
+/*
+ * カテゴリ別バッジ（Fluent 2 の Badge / appearance: filled）。
+ *
+ * 暗い端末の上と、モーダルの明るい面の両方に出る。
+ * どちらでも同じに見えるよう、分類色を塗りで敷いて文字を白で抜く
+ * （淡いチップにすると、暗い面では背景に沈んでしまう）。
+ */
 .cat-badge {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 10.5px;
-  font-weight: 700;
-  line-height: 1.3;
+  padding: 1px var(--spacing-s-nudge);
+  border-radius: var(--border-radius-medium);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-100);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-foreground-inverted);
 }
-.cat-badge.position {
-  background: #0284c7;
-  color: #f0f9ff;
-}
-.cat-badge.satellite {
-  background: #7c3aed;
-  color: #f5f3ff;
-}
-.cat-badge.clas {
-  background: #059669;
-  color: #ecfdf5;
-}
-.cat-badge.rtk {
-  background: #2563eb;
-  color: #eff6ff;
-}
-.cat-badge.system {
-  background: var(--slate-600);
-  color: var(--slate-50);
-}
-.cat-badge.other {
-  background: #334155;
-  color: var(--slate-200);
-}
+.cat-badge.position { background: var(--color-palette-blue-primary); }
+.cat-badge.satellite { background: var(--color-palette-purple-primary); }
+.cat-badge.clas { background: var(--brand-90); }
+.cat-badge.rtk { background: var(--color-palette-cornflower-primary); }
+.cat-badge.system { background: var(--color-neutral-foreground-3); }
+.cat-badge.other { background: var(--color-neutral-foreground-2); }
 
 .type-pill {
   flex: 0 0 auto;
-  font-size: 11px;
-  font-weight: 700;
-  color: #6ee7b7;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-bold);
+  color: var(--terminal-accent);
 }
 
-.checksum { color: #71847d; text-align: right; margin-left: auto; flex: 0 0 auto; font-size: 11px; }
-.checksum.ok { color: #67cf9f; }
-.checksum.bad { color: #ef8d7e; }
+.checksum {
+  color: var(--terminal-foreground-3);
+  text-align: right;
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: var(--font-size-200);
+}
+.checksum.ok { color: var(--brand-120); }
+.checksum.bad { color: var(--color-status-danger-foreground-dark); }

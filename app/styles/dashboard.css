@@ -1,15 +1,38 @@
 /* 測位ダッシュボード（現在位置・測位ステータス・衛星内訳・DOP・移動情報） */
 
+/*
+ * 並びは測位ステータス・現在位置・移動情報（HTML 上の順序と同じ）。
+ * 幅は載る情報の量で決める。
+ *
+ * 現在位置は緯度・経度と標高・推定水平誤差・UTC、移動情報は速度・進行方向・測位日で、
+ * どちらも数えるほどしかない。対して測位ステータスは測位品質・使用衛星と可視衛星の
+ * システム別内訳・DOP 3 種を 1 枚に収める。等分に近い配分では、
+ * 片方は余白ばかり、片方は詰まりすぎて読み取れなくなる。
+ *
+ * そこで余りは測位ステータスへ寄せる。1280px 幅で衛星の内訳チップ
+ * （GPS / QZS / GAL / GLO / BDS）が 1 行に収まるところまで広げてある。
+ *
+ * 下限を minmax で切ってあるのは、比率だけだと画面幅によっては
+ * 中身が枠から溢れて末尾が省略されてしまうため。値はいずれも実測で、
+ * 測位ステータスは DOP カード 3 枚、現在位置は座標 1 行、
+ * 移動情報は「測位日 2026-08-27」の行がそれぞれ下限を決めている。
+ */
 .dashboard {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: 1.15fr 1.25fr 0.68fr;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, .75fr) minmax(180px, .48fr);
+  gap: var(--spacing-m);
   align-items: stretch;
 }
+/*
+ * 中の詰め方はパネル自身の幅で決める。
+ * 同じ 1 枚でも 3 列並びか 2 列並びかで幅が倍近く違うため、
+ * 画面幅を見るコンテナクエリでは切り替えどころを言い当てられない。
+ */
 .dashboard .panel {
+  container: dashboard-panel / inline-size;
   min-width: 0;
-  padding: 9px 13px;
+  padding: var(--spacing-m) var(--spacing-l);
   display: flex;
   flex-direction: column;
 }
@@ -17,125 +40,168 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  min-height: 26px;
+  gap: var(--spacing-s);
+  min-height: 32px;
 }
 .panel-title-with-badge {
   display: flex;
   flex-direction: row;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--spacing-s);
 }
+
+/* Fluent 2 の Badge（appearance: tint）。補正ソースの種類を示す */
 .source-tag {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11.5px;
-  font-weight: 700;
+  gap: var(--spacing-xs);
+  height: 22px;
+  padding: 0 var(--spacing-s);
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-circular);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  font-weight: var(--font-weight-semibold);
   width: fit-content;
-  line-height: 1.3;
+  white-space: nowrap;
 }
-.source-tag.clas {
-  color: var(--green);
-  background: var(--green-soft);
-  border: 1px solid #bce4d0;
-}
+.source-tag.clas,
 .source-tag.clas-converging {
-  color: #047857;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
+  color: var(--color-brand-foreground-1);
+  background: var(--color-brand-background-2);
+  border-color: var(--color-brand-stroke-2);
 }
-.source-tag.ntrip {
-  color: #1d4ed8;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-}
+.source-tag.ntrip,
 .source-tag.ntrip-converging {
-  color: #1d4ed8;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  color: var(--color-status-info-foreground);
+  background: var(--color-status-info-background);
+  border-color: var(--color-status-info-border);
 }
 .source-tag.none {
-  color: #4b5563;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  color: var(--color-neutral-foreground-2);
+  background: var(--color-neutral-background-3);
+  border-color: var(--color-neutral-stroke-2);
 }
 .panel h3 {
   margin: 0;
-  font-size: 17px;
-  line-height: 1.2;
-  letter-spacing: -.015em;
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-700);
+  line-height: var(--line-height-700);
+  font-weight: var(--font-weight-semibold);
 }
 .fix-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 50px;
-  height: 22px;
-  padding: 0 7px;
-  border-radius: 4px;
+  min-width: 60px;
+  height: 26px;
+  padding: 0 var(--spacing-m);
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-circular);
   text-align: center;
   font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: .03em;
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: .02em;
 }
-.fix-badge.fix { color: #fff; background: var(--green); }
-.fix-badge.float { color: #785c0f; background: #f3e6ae; }
-.fix-badge.single { color: #235340; background: var(--green-soft); }
-.fix-badge.none { color: #6c7873; background: #e9eeeb; }
+.fix-badge.fix {
+  color: var(--color-neutral-foreground-inverted);
+  background: var(--color-brand-background);
+}
+.fix-badge.float {
+  color: var(--color-status-warning-foreground);
+  background: var(--color-status-warning-background);
+  border-color: var(--color-status-warning-border);
+}
+.fix-badge.single {
+  color: var(--color-brand-foreground-1);
+  background: var(--color-brand-background-2);
+  border-color: var(--color-brand-stroke-2);
+}
+.fix-badge.none {
+  color: var(--color-neutral-foreground-2);
+  background: var(--color-neutral-background-4);
+  border-color: var(--color-neutral-stroke-2);
+}
 
 .fix-source-detail {
   display: inline-block;
-  color: var(--muted);
-  font-size: 11.5px;
-  font-weight: 500;
-  line-height: 1.2;
+  color: var(--color-neutral-foreground-3);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
 }
 
 .coordinate-display {
-  margin: 4px 0;
-  padding: 4px 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  margin: var(--spacing-s) 0;
+  padding: var(--spacing-s) 0;
+  border-top: 1px solid var(--color-neutral-stroke-2);
+  border-bottom: 1px solid var(--color-neutral-stroke-2);
 }
 .coordinate-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 14px;
+  grid-template-columns: 40px minmax(0, 1fr) 20px;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--spacing-s);
 }
-.coordinate-row + .coordinate-row { margin-top: 1px; }
+.coordinate-row + .coordinate-row { margin-top: var(--spacing-xxs); }
 .coordinate-row .axis {
-  color: #8a9792;
-  font: 700 12px ui-monospace, Consolas, monospace;
-  letter-spacing: .08em;
+  color: var(--color-neutral-foreground-3);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: .06em;
 }
+/* 座標そのもの。桁が縦に揃うよう等幅で組む */
 .coordinate-row strong {
   overflow: hidden;
-  color: #98a29e;
-  font: 600 clamp(18px, 1.6vw, 23px)/1.15 ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--color-neutral-foreground-disabled);
+  font-family: var(--font-family-monospace);
+  font-size: clamp(20px, 1.7vw, 26px);
+  line-height: 1.15;
+  font-weight: var(--font-weight-semibold);
   letter-spacing: -.02em;
 }
-.coordinate-display.has-position strong { color: var(--ink); }
-.coordinate-row .direction { color: var(--green); font: 800 13px ui-monospace, Consolas, monospace; }
+.coordinate-display.has-position strong { color: var(--color-neutral-foreground-1); }
+.coordinate-row .direction {
+  color: var(--color-brand-foreground-1);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-400);
+  font-weight: var(--font-weight-bold);
+}
+/*
+ * 3 つの値を等分せず、それぞれが実際に要る幅の比で分ける。
+ * 秒の小数まで出る UTC 時刻がいちばん長く、推定水平誤差がいちばん短い。
+ * 等分にすると、長いほうだけが末尾を省略されてしまう。
+ */
 .position-meta {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  grid-template-columns: 1.05fr .85fr 1.25fr;
+  gap: var(--spacing-s);
   margin-top: auto;
-  padding-top: 2px;
+  padding-top: var(--spacing-xs);
 }
 .position-meta div { min-width: 0; }
+
+/*
+ * 3 列に割ると 1 列あたりが値の幅を下回るので、2 列 2 段へ組み替える。
+ * 3 つ目（UTC）を段いっぱいに広げないのは、上下で列の位置を揃えるため。
+ * 広げると値の左端だけがずれて、縦に読み下せなくなる。
+ *
+ * 左右を等分にしないのは、左の列が標高と UTC の 2 つを縦に抱えるため。
+ * 長いほうの UTC に合わせないと、こちらだけ末尾が省略されてしまう。
+ */
+@container dashboard-panel (max-width: 370px) {
+  .position-meta { grid-template-columns: 1.5fr 1fr; }
+}
 .position-meta span {
   display: block;
-  margin-bottom: 1px;
-  color: var(--muted-soft);
-  font-size: 11.5px;
-  font-weight: 600;
+  margin-bottom: var(--spacing-xxs);
+  color: var(--color-neutral-foreground-3);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  font-weight: var(--font-weight-medium);
   white-space: nowrap;
 }
 .position-meta strong {
@@ -143,66 +209,132 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 700 15px/1.2 ui-monospace, Consolas, monospace;
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-600);
+  line-height: var(--line-height-600);
+  font-weight: var(--font-weight-bold);
 }
 .position-meta small {
-  color: #87938e;
-  font-size: 11.5px;
-  font-weight: 500;
+  color: var(--color-neutral-foreground-3);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-regular);
 }
 
-.signal-orbit { position: relative; width: 24px; height: 18px; display: block; flex: 0 0 auto; }
+/*
+ * 受信中を示す扇形のインジケータ。
+ *
+ * 円弧は「上と右だけ色を付けた円」を 45 度倒して作る。倒すと要素の外接矩形が
+ * 対角線ぶん広がり、見た目は変わらないのに親の見出し行を押し広げてしまうため、
+ * はみ出しをここで断つ（円そのものは枠内に収まっているので欠けない）。
+ */
+.signal-orbit {
+  position: relative;
+  width: 26px;
+  height: 22px;
+  display: block;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
 .signal-orbit i {
   position: absolute;
   right: 1px;
   bottom: 1px;
-  border: 1.5px solid #b3beb9;
+  border: 1.5px solid var(--color-neutral-stroke-1);
   border-left-color: transparent;
   border-bottom-color: transparent;
-  border-radius: 50%;
+  border-radius: var(--border-radius-circular);
   transform: rotate(-45deg);
 }
-.signal-orbit i:nth-child(1) { width: 7px; height: 7px; }
-.signal-orbit i:nth-child(2) { width: 13px; height: 13px; }
-.signal-orbit i:nth-child(3) { width: 19px; height: 19px; }
-.signal-orbit.active i { border-top-color: var(--green-bright); border-right-color: var(--green-bright); }
+.signal-orbit i:nth-child(1) { width: 8px; height: 8px; }
+.signal-orbit i:nth-child(2) { width: 14px; height: 14px; }
+.signal-orbit i:nth-child(3) { width: 20px; height: 20px; }
+.signal-orbit.active i {
+  border-top-color: var(--color-brand-accent);
+  border-right-color: var(--color-brand-accent);
+}
 .fix-state {
-  margin: 4px 0;
-  padding: 4px 0;
+  margin: var(--spacing-s) 0;
+  padding: var(--spacing-s) 0;
   display: flex;
   align-items: center;
-  gap: 7px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  gap: var(--spacing-m-nudge);
+  border-top: 1px solid var(--color-neutral-stroke-2);
+  border-bottom: 1px solid var(--color-neutral-stroke-2);
 }
 .fix-indicator {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   flex: 0 0 auto;
-  border-radius: 50%;
-  background: #a5afab;
-  box-shadow: 0 0 0 2.5px #edf0ee;
+  border-radius: var(--border-radius-circular);
+  background: var(--color-neutral-foreground-4);
+  box-shadow: 0 0 0 3px var(--color-neutral-background-4);
 }
-.fix-indicator.fix { background: var(--green-bright); box-shadow: 0 0 0 2.5px var(--green-soft); }
-.fix-indicator.float { background: var(--yellow); box-shadow: 0 0 0 2.5px #f6efd6; }
-.fix-state strong { display: inline-block; margin-right: 4px; font-size: 13px; font-weight: 700; line-height: 1.2; }
+.fix-indicator.fix {
+  background: var(--color-brand-accent);
+  box-shadow: 0 0 0 3px var(--color-brand-background-2);
+}
+.fix-indicator.float {
+  background: var(--color-status-warning-foreground);
+  box-shadow: 0 0 0 3px var(--color-status-warning-border);
+}
+.fix-state strong {
+  display: inline-block;
+  margin-right: var(--spacing-s);
+  font-size: var(--font-size-400);
+  line-height: var(--line-height-400);
+  font-weight: var(--font-weight-semibold);
+}
+
+/*
+ * 衛星の内訳と DOP の囲み。
+ *
+ * 既定では囲みそのものを消し（display: contents）、パネル直下に 2 つが
+ * 縦に積まれた従来どおりの並びにする。囲みを実体のある箱にしてしまうと、
+ * DOP を下端へ張り付ける margin-top: auto がパネルまで届かなくなる。
+ */
+.fix-detail { display: contents; }
+
+/*
+ * パネルが全画面幅まで広がったときだけ、衛星の内訳と DOP を左右に並べる。
+ * 縦に積んだままだと、どちらも幅が有り余って間延びする
+ * （1120px 幅では DOP カード 1 枚が 329px になり、中身は 105px しかない）。
+ *
+ * 衛星側に 610px の下限を置いてあるのは、内訳チップ 5 種が
+ * 折り返さずに 1 行へ収まる幅（実測 594px）に余裕を足した値。
+ * ここを削ると横に並べた意味が無くなる。
+ * DOP は残りを受け取り、狭ければ自分でカードを縦積みに切り替える。
+ *
+ * 900px という境目は「衛星 610 + 隙間 8 + DOP 275（縦積みカードの下限）」。
+ * これを下回ると、横に並べたとたんどちらかが折り返すので、縦積みのまま置く。
+ */
+@container dashboard-panel (min-width: 900px) {
+  .fix-detail {
+    display: grid;
+    grid-template-columns: minmax(610px, 1.7fr) minmax(0, 1fr);
+    gap: var(--spacing-s);
+    align-items: start;
+    margin-top: auto;
+  }
+  .fix-detail .satellites-section { margin: 0; }
+  .fix-detail .dop-container { margin-top: 0; }
+}
 
 /* 衛星ステータス & 内訳セクション (左右2カラム配置) */
 .satellites-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin: 4px 0;
+  gap: var(--spacing-s);
+  margin: var(--spacing-s) 0;
 }
 
 .sat-group {
-  background: #f8faf9;
-  border: 1px solid #e2eae5;
-  border-radius: 5px;
-  padding: 4px 6px;
+  background: var(--color-neutral-background-2);
+  border: 1px solid var(--color-neutral-stroke-2);
+  border-radius: var(--border-radius-large);
+  padding: var(--spacing-s) var(--spacing-m-nudge);
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--spacing-s);
   min-width: 0;
 }
 
@@ -210,212 +342,247 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--spacing-xs);
 }
 
 .sat-group-title {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #556961;
-  letter-spacing: 0.02em;
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-foreground-2);
   white-space: nowrap;
 }
 
 .sat-group-total {
-  font-size: 10.5px;
-  color: var(--muted-soft);
+  font-size: var(--font-size-200);
+  color: var(--color-neutral-foreground-3);
   white-space: nowrap;
 }
 
 .sat-group-total strong {
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-500);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-neutral-foreground-1);
 }
 
 .sat-group-total small {
-  font-size: 9.5px;
-  color: var(--muted-soft);
-  margin-left: 1px;
+  font-size: var(--font-size-100);
+  color: var(--color-neutral-foreground-3);
+  margin-left: var(--spacing-xxs);
 }
 
 .sat-breakdown-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2.5px;
+  gap: var(--spacing-xs);
 }
 
 .sat-breakdown-empty {
-  font-size: 10.5px;
-  color: var(--slate-400);
-  padding: 1px 0;
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  color: var(--color-neutral-foreground-4);
 }
 
+/* Fluent 2 の Badge（appearance: tint / size: small） */
 .sat-chip {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 10px;
-  line-height: 1.2;
+  gap: var(--spacing-xs);
+  padding: 1px var(--spacing-s-nudge);
+  border-radius: var(--border-radius-medium);
+  line-height: var(--line-height-100);
   white-space: nowrap;
-  box-sizing: border-box;
   user-select: none;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-family-base);
 }
 
 .sat-chip-name {
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  opacity: 0.9;
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: .02em;
 }
 
 .sat-chip-count {
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-weight: 800;
-  font-size: 10.5px;
+  font-family: var(--font-family-monospace);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-200);
 }
 
-/* 各衛星システムごとの配色 (視認性が高くコントラストのあるトーン) */
+/*
+ * 衛星システムごとの配色。
+ * どれが優れているという話ではないので、状態色ではなく分類色から採る。
+ */
 .sat-chip.gps {
-  background: #e0f2fe;
-  color: #0369a1;
-  border: 1px solid #bae6fd;
+  background: var(--color-palette-blue-background);
+  color: var(--color-palette-blue-foreground);
+  border: 1px solid var(--color-palette-blue-border);
 }
 
 .sat-chip.qzss {
-  background: #ffedd5;
-  color: #c2410c;
-  border: 1px solid #fed7aa;
+  background: var(--color-palette-orange-background);
+  color: var(--color-palette-orange-foreground);
+  border: 1px solid var(--color-palette-orange-border);
 }
 
 .sat-chip.galileo {
-  background: #ede9fe;
-  color: #6d28d9;
-  border: 1px solid #ddd6fe;
+  background: var(--color-palette-purple-background);
+  color: var(--color-palette-purple-foreground);
+  border: 1px solid var(--color-palette-purple-border);
 }
 
 .sat-chip.glonass {
-  background: #dcfce7;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
+  background: var(--color-palette-green-background);
+  color: var(--color-palette-green-foreground);
+  border: 1px solid var(--color-palette-green-border);
 }
 
 .sat-chip.beidou {
-  background: #ccfbf1;
-  color: #0f766e;
-  border: 1px solid #99f6e4;
+  background: var(--color-palette-teal-background);
+  color: var(--color-palette-teal-foreground);
+  border: 1px solid var(--color-palette-teal-border);
 }
 
 .sat-chip.sbas,
 .sat-chip.other {
-  background: var(--slate-100);
-  color: var(--slate-600);
-  border: 1px solid var(--slate-200);
+  background: var(--color-neutral-background-3);
+  color: var(--color-neutral-foreground-2);
+  border: 1px solid var(--color-neutral-stroke-2);
 }
 
 /* DOP 精度低下率 コンテナ & カード */
+/*
+ * カードの組み方はこの箱自身の幅で決める。
+ * パネルの幅を見ると、衛星の内訳と横に並んだときに実際の持ち幅と食い違う。
+ */
 .dop-container {
+  container: dop / inline-size;
   margin-top: auto;
-  padding: 4px 6px;
-  background: var(--slate-50);
-  border: 1px solid var(--slate-200);
-  border-radius: 5px;
+  padding: var(--spacing-s) var(--spacing-m-nudge);
+  background: var(--color-neutral-background-2);
+  border: 1px solid var(--color-neutral-stroke-2);
+  border-radius: var(--border-radius-large);
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--spacing-s);
 }
 
 .dop-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: var(--spacing-s);
 }
 
 .dop-title {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--slate-600);
-  letter-spacing: 0.02em;
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-foreground-2);
   white-space: nowrap;
 }
 
 .dop-status-tag {
-  font-size: 9.5px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 999px;
-  line-height: 1.2;
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-100);
+  font-weight: var(--font-weight-semibold);
+  padding: 1px var(--spacing-s);
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-circular);
   white-space: nowrap;
 }
 
 .dop-status-tag.great {
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
+  background: var(--color-status-success-background);
+  color: var(--color-status-success-foreground);
+  border-color: var(--color-status-success-border);
 }
 
 .dop-status-tag.good {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  background: var(--color-status-info-background);
+  color: var(--color-status-info-foreground);
+  border-color: var(--color-status-info-border);
 }
 
 .dop-status-tag.fair {
-  background: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fde68a;
+  background: var(--color-status-warning-background);
+  color: var(--color-status-warning-foreground);
+  border-color: var(--color-status-warning-border);
 }
 
 .dop-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
+  gap: var(--spacing-s);
 }
 
 .dop-card {
-  background: #ffffff;
-  border: 1px solid var(--slate-200);
-  border-radius: 3px;
-  padding: 2px 5px;
+  background: var(--color-neutral-background-1);
+  border: 1px solid var(--color-neutral-stroke-2);
+  border-radius: var(--border-radius-medium);
+  padding: var(--spacing-xxs) var(--spacing-s);
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 4px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  gap: var(--spacing-xs);
 }
 
+/* 3D の値は 3 枚のうち最も重要なので、罫線と影で 1 段持ち上げる */
 .dop-card.primary {
-  border-color: #cbd5e1;
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-color: var(--color-neutral-stroke-1);
+  box-shadow: var(--shadow-2);
 }
 
 .dop-card-label {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--slate-500);
-  letter-spacing: 0.02em;
+  font-size: var(--font-size-100);
+  line-height: var(--line-height-100);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-foreground-3);
+  letter-spacing: .02em;
   white-space: nowrap;
 }
 
 .dop-card-label small {
   display: inline;
-  font-size: 8.5px;
-  font-weight: 500;
-  color: var(--slate-400);
-  margin-left: 2px;
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-neutral-foreground-4);
+  margin-left: var(--spacing-xxs);
 }
 
 .dop-card-value {
-  font: 700 12px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
-  color: #0f172a;
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-400);
+  line-height: var(--line-height-400);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-neutral-foreground-1);
   white-space: nowrap;
+}
+
+/*
+ * 横並びのままでは「HDOP 水平」と値がカードの幅に収まらなくなる。
+ * 名前を削るのではなく縦に積む。3 枚とも同じ高さになるので行は乱れない。
+ * 392px は 3 枚を横並びのまま置ける下限の実測値。
+ */
+@container dop (max-width: 392px) {
+  .dop-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+}
+
+/*
+ * さらに狭いと「HDOP 水平」が 1 行に収まらない。
+ * ここでも読みを削らず、添え字を次の行へ送る。
+ * 3 枚を横に並べたままにするのは、DOP は 3 つを見比べてこそ意味を持つため。
+ */
+@container dop (max-width: 260px) {
+  .dop-card-label small {
+    display: block;
+    margin-left: 0;
+  }
 }
 
 .motion-panel {
@@ -424,53 +591,60 @@
   justify-content: space-between;
 }
 .speed-value {
-  margin: 2px 0 0;
-  padding-top: 0;
+  margin: var(--spacing-xs) 0 0;
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: var(--spacing-s);
 }
 .speed-value strong {
   display: inline-block;
   overflow: hidden;
-  font: 600 clamp(22px, 2vw, 26px)/1 ui-monospace, Consolas, monospace;
+  font-family: var(--font-family-monospace);
+  font-size: clamp(26px, 2.2vw, 32px);
+  line-height: 1;
+  font-weight: var(--font-weight-semibold);
   letter-spacing: -.03em;
 }
 .speed-value span {
   display: inline-block;
-  color: var(--green);
-  font: 700 12px ui-monospace, Consolas, monospace;
+  color: var(--color-brand-foreground-1);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-bold);
 }
 .motion-meta-group {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--spacing-xs);
   margin-top: auto;
 }
 .course-line, .date-line {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  font-size: 11.5px;
+  gap: var(--spacing-s);
 }
 .course-line span, .date-line span {
   display: block;
   margin: 0;
-  color: var(--muted-soft);
-  font-weight: 600;
-  font-size: 11px;
+  color: var(--color-neutral-foreground-3);
+  font-size: var(--font-size-200);
+  line-height: var(--line-height-200);
+  font-weight: var(--font-weight-medium);
 }
 .course-line strong, .date-line strong {
-  font: 700 13px ui-monospace, Consolas, monospace;
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-400);
+  line-height: var(--line-height-400);
+  font-weight: var(--font-weight-bold);
 }
 .course-rule {
   position: relative;
-  height: 2px;
-  margin: 2px 0 3px;
+  height: 3px;
+  margin: var(--spacing-xxs) 0 var(--spacing-xs);
   overflow: hidden;
-  background: #e5eae7;
-  border-radius: 1px;
+  background: var(--color-neutral-background-5);
+  border-radius: var(--border-radius-circular);
 }
 /* 位置は目盛り全体に対する割合なので left で置く（transform の % は自身の幅が基準） */
 .course-rule span {
@@ -478,14 +652,15 @@
   top: 0;
   left: 0;
   display: block;
-  width: 6px;
-  height: 2px;
-  margin-left: -3px;
-  background: var(--green);
-  transition: left .3s;
+  width: 8px;
+  height: 3px;
+  margin-left: -4px;
+  background: var(--color-brand-background);
+  border-radius: var(--border-radius-circular);
+  transition: left var(--duration-normal) var(--curve-decelerate-mid);
 }
 .date-line {
-  margin-top: 2px;
-  padding-top: 3px;
-  border-top: 1px solid var(--line);
+  margin-top: var(--spacing-xxs);
+  padding-top: var(--spacing-xs);
+  border-top: 1px solid var(--color-neutral-stroke-2);
 }

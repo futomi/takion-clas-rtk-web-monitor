@@ -89,11 +89,19 @@ app/
                           リクエストボディの上限付き読み取り・Caster への接続と中継・同時実行数の制限）
   hooks/        Web Serial 受信・NTRIP 接続・軌跡記録・地図の全画面・ログ追従の状態管理
   components/   表示コンポーネント
+  styles/       画面領域ごとのスタイルシート（読み込み順の目次は app/globals.css）
+    base.css        リセットと Fluent 2 のデザイントークン
   api/ntrip/    NTRIP Caster への中継 API
 tests/          app/lib 配下に対する単体テスト
 ```
 
 `app/lib` 配下は DOM にも React にも依存しないため、そのまま単体テストできます。
+
+画面のデザインは Microsoft の [Fluent 2 Design System](https://fluent2.microsoft.design/) に沿っています。
+型ランプ・配色・角丸・余白・エレベーション・モーション・フォーカス表示は
+すべて `app/styles/base.css` のトークンとして定義してあり、
+他のスタイルシートは値を持たずにそれを参照します。配色は Fluent 2 のニュートラル ramp と、
+アプリの識別色である緑を Fluent と同じ 16 段構成へ組み直したブランド ramp の 2 系統です。
 
 ### コマンド
 

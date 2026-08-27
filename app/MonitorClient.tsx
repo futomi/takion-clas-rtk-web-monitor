@@ -185,8 +185,13 @@ export default function MonitorClient() {
         </div>
       )}
 
+      {/*
+        並び順は「どれだけ信頼できるか → どこにいるか → どう動いているか」。
+        測位ステータスを先頭に置くのは、画面が狭いときにこの 1 枚だけを
+        横いっぱいに広げて上の段へ出すため。見た目だけを CSS で入れ替えると、
+        キーボードの移動順と読み上げ順が見た目とずれてしまう。
+      */}
       <section className="dashboard" aria-label="測位情報">
-        <PositionPanel telemetry={telemetry} activeSource={activeSource} quality={quality} />
         <FixPanel
           telemetry={telemetry}
           activeSource={activeSource}
@@ -194,6 +199,7 @@ export default function MonitorClient() {
           connection={connection}
           lastAge={lastAge}
         />
+        <PositionPanel telemetry={telemetry} activeSource={activeSource} quality={quality} />
         <MotionPanel telemetry={telemetry} />
       </section>
 
