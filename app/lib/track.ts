@@ -168,67 +168,137 @@ export type TrackSegmentProperties = {
   pointCount: number;
 };
 
+/** `points[from]` から `points[to]` までを 1 本のラインにする。2 点に満たなければ作らない */
+function toSegmentFeature(
+  points: TrackPoint[],
+  from: number,
+  to: number,
+): Feature<LineString, TrackSegmentProperties> | null {
+  if (to - from + 1 < 2) return null;
+
+  const coordinates: [number, number][] = [];
+  for (let index = from; index <= to; index += 1) {
+    coordinates.push([points[index].longitude, points[index].latitude]);
+  }
+
+  return {
+    type: 'Feature',
+    properties: {
+      // 色調を決めたのは先頭の点。終端は品質が変わった次の区間の起点でもあるため、
+      // そちらから取ると tone と食い違う
+      tone: trackPointTone(points[from]),
+      quality: points[from].quality,
+      startedAt: points[from].at,
+      endedAt: points[to].at,
+      pointCount: to - from + 1,
+    },
+    geometry: { type: 'LineString', coordinates },
+  };
+}
+
+/** 区間への切り分け結果 */
+type WalkedSegments = {
+  /** 終わりが確定した区間。点が後ろへ足されても二度と変わらない */
+  closed: Feature<LineString, TrackSegmentProperties>[];
+  /** まだ伸びうる末尾の区間。2 点に満たなければ null */
+  open: Feature<LineString, TrackSegmentProperties> | null;
+  /** 末尾の区間が始まる `points` 上の位置 */
+  openStart: number;
+};
+
 /**
- * 軌跡を地図に描けるライン群へ変換する。
+ * `startIndex` 以降を区間へ切り分ける。
  *
  * 欠測での分割に加えて、測位品質が変わる位置でも線を切る。区間ごとに色を変えるためで、
  * 境目の点は前後の区間が共有するので、見た目が途切れることも線が重なることもない。
+ *
+ * 確定した区間と末尾の区間を分けて返すのは、点が後ろへ足されるだけの記録中に
+ * 全体を組み直さずに済ませるため（{@link createTrackFeatureBuilder} が使う）。
+ */
+function walkTrackSegments(points: TrackPoint[], startIndex: number, gapMs: number): WalkedSegments {
+  const closed: Feature<LineString, TrackSegmentProperties>[] = [];
+  let segmentStart = Math.min(Math.max(startIndex, 0), Math.max(points.length - 1, 0));
+  let tone: QualityTone | undefined = points.length > segmentStart
+    ? trackPointTone(points[segmentStart])
+    : undefined;
+
+  const close = (to: number) => {
+    const feature = toSegmentFeature(points, segmentStart, to);
+    if (feature) closed.push(feature);
+  };
+
+  for (let index = segmentStart + 1; index < points.length; index += 1) {
+    const pointTone = trackPointTone(points[index]);
+
+    // 欠測。実際にどこを通ったか分からないので、境目の点は共有せず別の連なりにする
+    if (points[index].at - points[index - 1].at > gapMs) {
+      close(index - 1);
+      segmentStart = index;
+      tone = pointTone;
+      continue;
+    }
+
+    // 品質の境目。変化した点を前後の区間で共有することで、
+    // 同じ線分を二重に描かずに線を繋げる。
+    // 境目へ入る 1 区間は、変化する前の色のまま描かれる
+    if (pointTone !== tone) {
+      close(index);
+      segmentStart = index;
+      tone = pointTone;
+    }
+  }
+
+  return { closed, open: toSegmentFeature(points, segmentStart, points.length - 1), openStart: segmentStart };
+}
+
+/**
+ * 軌跡を地図に描けるライン群へ変換する。
+ *
  * 点が 1 つしか無い区間は LineString として成立しないので落とす。
  */
 export function buildTrackFeatures(
   points: TrackPoint[],
   gapMs: number = TRACK_GAP_MS,
 ): FeatureCollection<LineString, TrackSegmentProperties> {
-  const features: Feature<LineString, TrackSegmentProperties>[] = [];
+  const { closed, open } = walkTrackSegments(points, 0, gapMs);
+  return { type: 'FeatureCollection', features: open ? [...closed, open] : closed };
+}
 
-  for (const group of splitTrackByGap(points, gapMs)) {
-    let segment: TrackPoint[] = [];
-    let tone: QualityTone | undefined;
+/**
+ * 前回の結果を引き継いで軌跡のライン群を組み立てる関数を作る。
+ *
+ * 記録中は 1 点ずつ後ろへ足されるだけなのに、毎回すべての点からライン群を組み直すと、
+ * 軌跡が伸びるほど 1 点あたりのコストが増えていく（上限の 50,000 点では毎秒数 ms）。
+ * 点を足して変わりうるのは末尾の区間だけなので、確定した区間は作り直さず使い回す。
+ *
+ * 渡された配列が短くなった場合と先頭の点が入れ替わった場合は、別の軌跡に
+ * 差し替わったとみなして最初から組み直す（記録の消去・再開・一時的な非表示）。
+ */
+export function createTrackFeatureBuilder(gapMs: number = TRACK_GAP_MS) {
+  let completed: Feature<LineString, TrackSegmentProperties>[] = [];
+  let openStart = 0;
+  let knownLength = 0;
+  let knownFirst: TrackPoint | undefined;
 
-    const flush = () => {
-      if (segment.length < 2 || tone === undefined) return;
-      features.push({
-        type: 'Feature',
-        properties: {
-          tone,
-          // 色調を決めたのは先頭の点。終端は品質が変わった次の区間の起点でもあるため、
-          // そちらから取ると tone と食い違う
-          quality: segment[0].quality,
-          startedAt: segment[0].at,
-          endedAt: segment[segment.length - 1].at,
-          pointCount: segment.length,
-        },
-        geometry: {
-          type: 'LineString',
-          coordinates: segment.map((point) => [point.longitude, point.latitude]),
-        },
-      });
-    };
-
-    for (const point of group) {
-      const previous = segment[segment.length - 1];
-      const pointTone = trackPointTone(point);
-      if (!previous) {
-        segment = [point];
-        tone = pointTone;
-        continue;
-      }
-      if (pointTone !== tone) {
-        // 品質の境目。変化した点を前後の区間で共有することで、
-        // 同じ線分を二重に描かずに線を繋げる。
-        // 境目へ入る 1 区間は、変化する前の色のまま描かれる
-        segment.push(point);
-        flush();
-        segment = [point];
-        tone = pointTone;
-        continue;
-      }
-      segment.push(point);
+  return function buildIncrementally(
+    points: TrackPoint[],
+  ): FeatureCollection<LineString, TrackSegmentProperties> {
+    if (points.length < knownLength || points[0] !== knownFirst) {
+      completed = [];
+      openStart = 0;
     }
-    flush();
-  }
+    knownLength = points.length;
+    knownFirst = points[0];
 
-  return { type: 'FeatureCollection', features };
+    const walked = walkTrackSegments(points, openStart, gapMs);
+    if (walked.closed.length > 0) completed = [...completed, ...walked.closed];
+    openStart = walked.openStart;
+
+    return {
+      type: 'FeatureCollection',
+      features: walked.open ? [...completed, walked.open] : completed,
+    };
+  };
 }
 
 /** 軌跡の始点。地図に開始位置の印を打つために使う */

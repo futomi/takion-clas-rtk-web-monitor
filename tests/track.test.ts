@@ -4,6 +4,7 @@ import { GGA_QUALITY } from '../app/lib/constants.ts';
 import {
   buildTrackFeatures,
   buildTrackStartFeature,
+  createTrackFeatureBuilder,
   formatUtcTimestamp,
   normalizeStoredPoint,
   shouldRecordPoint,
@@ -190,6 +191,74 @@ describe('buildTrackFeatures', () => {
     // 切り替え点は両方のラインに含まれるので、見た目に隙間ができない
     assert.equal(collection.features[0].geometry.coordinates.length, 3);
     assert.equal(collection.features[1].geometry.coordinates.length, 2);
+  });
+});
+
+describe('createTrackFeatureBuilder', () => {
+  /**
+   * 増分で組み立てた結果が、毎回すべての点から組み直した結果と食い違わないことを確かめる。
+   * 確定した区間を作り直さない最適化なので、一致こそがこの関数の唯一の約束になる。
+   */
+  const assertMatchesFullBuild = (points: TrackPoint[], gapMs: number) => {
+    const build = createTrackFeatureBuilder(gapMs);
+    for (let count = 0; count <= points.length; count += 1) {
+      const prefix = points.slice(0, count);
+      assert.deepEqual(
+        build(prefix),
+        buildTrackFeatures(prefix, gapMs),
+        `${count} 点まで積んだ時点で全体組み直しと一致しない`,
+      );
+    }
+  };
+
+  it('品質が変わり続ける軌跡でも全体組み直しと一致する', () => {
+    const qualities = [
+      GGA_QUALITY.PRECISE_FIX,
+      GGA_QUALITY.PRECISE_FIX,
+      GGA_QUALITY.PRECISE_FLOAT,
+      GGA_QUALITY.STANDALONE,
+      GGA_QUALITY.STANDALONE,
+      GGA_QUALITY.PRECISE_FIX,
+    ];
+    assertMatchesFullBuild(
+      qualities.map((quality, index) => point({ at: index * 1000, quality })),
+      30_000,
+    );
+  });
+
+  it('欠測を跨いでも全体組み直しと一致する', () => {
+    const times = [0, 1000, 2000, 90_000, 91_000, 92_000, 200_000];
+    assertMatchesFullBuild(times.map((at) => point({ at })), 30_000);
+  });
+
+  it('記録を消して別の軌跡を始めても前の区間を引きずらない', () => {
+    const build = createTrackFeatureBuilder(30_000);
+    const first = [0, 1000, 2000].map((at) => point({ at }));
+    build(first);
+
+    // 記録の消去は空配列を経由する。ここで控えが捨てられないと前の線が残る
+    assert.equal(build([]).features.length, 0);
+
+    const second = [0, 1000].map((at) => point({ at, longitude: BASE_LON + STEP_DEGREES }));
+    assert.deepEqual(build(second), buildTrackFeatures(second, 30_000));
+  });
+
+  it('先頭が入れ替わった配列を渡されたら組み直す', () => {
+    const build = createTrackFeatureBuilder(30_000);
+    const first = [0, 1000, 2000, 3000].map((at) => point({ at }));
+    build(first);
+
+    // 同じ長さでも別の軌跡なら、確定済みの区間を使い回してはいけない
+    const replaced = [0, 1000, 2000, 3000].map((at) => point({ at, latitude: BASE_LAT + STEP_DEGREES }));
+    assert.deepEqual(build(replaced), buildTrackFeatures(replaced, 30_000));
+  });
+
+  it('一時的に非表示にしても、再び表示したときに同じ結果へ戻る', () => {
+    const points = [0, 1000, 2000, 60_000, 61_000].map((at) => point({ at }));
+    const build = createTrackFeatureBuilder(30_000);
+    build(points);
+    build([]);
+    assert.deepEqual(build(points), buildTrackFeatures(points, 30_000));
   });
 });
 
