@@ -222,4 +222,4 @@ NTRIP の接続設定（Caster、ポート、マウントポイント、ユー�
 
 このリポジトリのソースコードは [MIT License](LICENSE) で公開しています。ライセンス上の制限は設けていませんが、[公開サーバーでの運用について](#公開サーバーでの運用について)に記載した事情がありますので、あわせてお読みください。
 
-なお、依存パッケージ（Next.js、React、MapLibre GL JS など）はそれぞれ独自のライセンスに従います。`docs/images/` の製品写真は TakionCM001 の紹介用素材であり、MIT License の対象には含みません。
+なお、依存パッケージ（Next.js、React、MapLibre GL JS など）はそれぞれ独自のライセンスに従います。地図の表示には OpenStreetMap のタイルを利用しており、地図データは © OpenStreetMap contributors（[ODbL](https://www.openstreetmap.org/copyright)）です。
