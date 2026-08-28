@@ -89,6 +89,25 @@ function NtripConfigPanel({
 
   const hiddenCandidateCount = candidates.length - listedCandidates.length;
 
+  /*
+   * 自動選定が実際に効いている条件。手動入力へ切り替えている間は近い局を選び直す処理が
+   * 止まる (useNtripForm の activeMountpoint と同じ条件) ので、選定根拠も出さない。
+   */
+  const isAutoSelecting = form.autoSelect && !form.isManualMountpoint;
+  // 一覧を絞っている旨は、リストから選ぶときにしか意味がない
+  const showListNote = !form.isManualMountpoint && hiddenCandidateCount > 0;
+  /*
+   * 注記を全幅の行へ追い出したぶん、読み上げでは欄と結び付かなくなる。
+   * aria-describedby で繋ぎ直す。出していない注記の id を指すと読み上げが空振りするので、
+   * 出ているものだけを並べる。
+   */
+  const mountpointDescribedBy = [
+    showListNote ? 'ntrip-mountpoint-note' : null,
+    isAutoSelecting ? 'ntrip-autoselect-note' : null,
+  ].filter(Boolean).join(' ') || undefined;
+  // 中身が無いまま置くと、高さ 0 の行にもグリッドの gap だけが残る
+  const hasNotes = showListNote || isAutoSelecting;
+
   /**
    * ポート欄の入力を数値へ落とす。
    *
@@ -179,6 +198,7 @@ function NtripConfigPanel({
                 value={activeMountpoint}
                 onChange={(event) => onFormChange({ autoSelect: false, mountpoint: event.target.value })}
                 disabled={isConnected || isFetchingSources}
+                aria-describedby={mountpointDescribedBy}
               >
                 {listedCandidates.length === 0 ? (
                   <option value={activeMountpoint || ''}>
@@ -200,25 +220,6 @@ function NtripConfigPanel({
                 手動入力
               </button>
             </div>
-          )}
-
-          {/* 一覧を絞っていることは必ず伝える。黙って隠すと、繋ぎたい局が
-              配信されていないのか単に出ていないだけなのかを画面から判断できない */}
-          {hiddenCandidateCount > 0 && (
-            <small className="field-note">
-              近い順に {listedCandidates.length} 局を表示しています（全 {candidates.length} 局）。
-              一覧に無い局は「手動入力」で指定できます。
-            </small>
-          )}
-
-          {positioned ? (
-            <small className="field-note coords-hint">
-              🛰️ Takion位置基準: {latitude.toFixed(4)}, {longitude.toFixed(4)} から自動検出
-            </small>
-          ) : (
-            <small className="field-note coords-hint waiting">
-              ⚠️ Takion測位データ待ち · 受信機が測位すると自動選定
-            </small>
           )}
         </div>
 
@@ -245,8 +246,38 @@ function NtripConfigPanel({
             disabled={isConnected}
             autoComplete="off"
           />
-          <small className="field-note">パスワードはブラウザに保存されません。</small>
         </div>
+
+        {/*
+          注記は欄の直下ではなく、グリッド全幅の 1 行へまとめる。
+          幅の狭い列に押し込むと 1 文が 3 行に折り返し、その高さがそのまま行全体の
+          高さになって、他の列に空白の谷ができる。全幅なら同じ文が 1 行で収まる。
+
+          離れたぶんの結び付きは、主語を明示する文面と aria-describedby で補う。
+          入力そのものが不正なときの注記 (ポート番号) はここへ移さない。
+          直すべき欄の隣にあることに意味がある。
+        */}
+        {hasNotes && (
+          <div className="ntrip-notes">
+            {showListNote && (
+              /* 一覧を絞っていることは必ず伝える。黙って隠すと、繋ぎたい局が
+                 配信されていないのか単に出ていないだけなのかを画面から判断できない */
+              <small id="ntrip-mountpoint-note" className="field-note">
+                基準局は近い順に {listedCandidates.length} 局を表示しています（全 {candidates.length} 局）。一覧に無い局は「手動入力」で指定できます。
+              </small>
+            )}
+
+            {isAutoSelecting && (positioned ? (
+              <small id="ntrip-autoselect-note" className="field-note coords-hint">
+                🛰️ {latitude.toFixed(4)}, {longitude.toFixed(4)} に近い局を自動選定
+              </small>
+            ) : (
+              <small id="ntrip-autoselect-note" className="field-note coords-hint waiting">
+                ⚠️ 測位待ち · 測位後に近い局を自動選定
+              </small>
+            ))}
+          </div>
+        )}
 
         <div className="ntrip-actions">
           {isConnected ? (
