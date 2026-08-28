@@ -26,14 +26,7 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 const siteOrigin = process.env.SITE_ORIGIN ?? 'http://localhost:3000';
-/*
- * OGP 画像の絶対 URL。
- *
- * サブディレクトリへ置く場合は公開パスもその下へずれるため、接頭辞を足してから解決する。
- * `new URL('/og.png', ...)` のように先頭を `/` にすると接頭辞が消えてしまう。
- */
-const basePath = process.env.BASE_PATH ?? '';
-const socialImage = new URL(`${basePath}/og.png`, siteOrigin).toString();
+const socialImage = new URL('/og.png', siteOrigin).toString();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),

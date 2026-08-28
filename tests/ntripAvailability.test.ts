@@ -10,7 +10,6 @@ import {
 const withHost = (host: string) => new Headers({ host });
 
 afterEach(() => {
-  delete process.env.NTRIP_ENABLED;
   for (const marker of PLATFORM_MARKERS) delete process.env[marker];
 });
 
@@ -56,17 +55,13 @@ describe('isNtripAvailable', () => {
     assert.equal(isNtripAvailable(withHost('127.0.0.1')), false);
   });
 
-  it('NTRIP_ENABLED=true なら PaaS 上でも受け付ける', () => {
-    // VPS などで意図して中継を立てる場合の逃げ道
+  it('中継を開ける環境変数は用意していない', () => {
+    // ローカル実行だけを想定しているため、外から有効化する手段は持たせない
     process.env.RENDER = 'true';
-    process.env.NTRIP_ENABLED = 'true';
-    assert.equal(isNtripAvailable(withHost('myapp.onrender.com')), true);
-  });
-
-  it('NTRIP_ENABLED は true 以外を有効と見なさない', () => {
-    for (const value of ['1', 'yes', 'TRUE', '']) {
-      process.env.NTRIP_ENABLED = value;
-      assert.equal(isNtripAvailable(withHost('example.com')), false, value);
+    for (const name of ['NTRIP_ENABLED', 'NTRIP_ALLOW_REMOTE']) {
+      process.env[name] = 'true';
+      assert.equal(isNtripAvailable(withHost('localhost')), false, name);
+      delete process.env[name];
     }
   });
 });

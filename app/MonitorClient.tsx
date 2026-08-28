@@ -24,14 +24,7 @@ import { useNtripForm } from './hooks/useNtripForm';
 import { useTrackRecorder } from './hooks/useTrackRecorder';
 import { DEFAULT_BAUD_RATE } from './lib/constants';
 import { formatSecondsAgo } from './lib/format';
-import type {
-  CorrectionMode,
-  LogCategoryFilter,
-  LogDisplayMode,
-  LogLine,
-  NtripAvailability,
-  NtripLiveState,
-} from './lib/types';
+import type { CorrectionMode, LogCategoryFilter, LogDisplayMode, LogLine, NtripLiveState } from './lib/types';
 
 /**
  * 画面全体の組み立て役。
@@ -39,12 +32,7 @@ import type {
  * 受信機・NTRIP・設定フォーム・補正ソース判定はいずれもフックへ委ね、
  * ここではそれらを繋いでセクションを並べることに徹する。
  */
-type MonitorClientProps = {
-  /** ネットワーク RTK の提供方針。ビルド時に決まる */
-  ntripAvailability?: NtripAvailability;
-};
-
-export default function MonitorClient({ ntripAvailability = 'loopback' }: MonitorClientProps) {
+export default function MonitorClient() {
   const isSupported = useIsSerialSupported();
   const clock = useClock();
 
@@ -54,9 +42,7 @@ export default function MonitorClient({ ntripAvailability = 'loopback' }: Monito
    * 公開環境では中継 API が 404 を返すため、フォームを出しても接続できない。
    * 判定の根拠は API 側（{@link ./lib/server/ntripAvailability}）と揃えてある。
    */
-  const isLoopbackOrigin = useIsLoopbackOrigin();
-  const isNtripAvailable =
-    ntripAvailability === 'always' || (ntripAvailability === 'loopback' && isLoopbackOrigin);
+  const isNtripAvailable = useIsLoopbackOrigin();
 
   const [baudRate, setBaudRate] = useState(DEFAULT_BAUD_RATE);
   const [mode, setMode] = useState<CorrectionMode>('clas');

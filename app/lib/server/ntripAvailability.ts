@@ -18,7 +18,9 @@ import { isLoopbackHost } from '../localHost';
  * `Host` だけだと、ブラウザ以外のクライアントに詐称され得る（{@link ../localHost} の注記）。
  * 逆に 1 だけだと一覧に無いプラットフォームを取りこぼす。互いの穴を塞ぐために両方を通す。
  *
- * VPS などで意図して中継を立てる場合は、`NTRIP_ENABLED=true` で明示的に開けられる。
+ * 開ける手段は用意しない。中継を公開状態で動かすと、利用者の配信局アカウントの認証情報を
+ * 預かることになり、配信局から見ればすべてのアクセスが 1 つの IP に集まる。
+ * このアプリはローカルで使うものとして配っている。
  */
 
 /**
@@ -54,7 +56,6 @@ export function isManagedPlatform(): boolean {
  * （テストから差し替えられるようにするため。呼ばれるのは接続開始時だけ）。
  */
 export function isNtripAvailable(headers: Headers): boolean {
-  if (process.env.NTRIP_ENABLED === 'true') return true;
   if (isManagedPlatform()) return false;
 
   const host = headers.get('host');
