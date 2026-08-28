@@ -5,9 +5,9 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 127.0.0.1",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 127.0.0.1",
     "lint": "eslint . --ignore-pattern .next",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
     "test": "node --import ./tests/resolve-ts.mjs --test tests/*.test.ts",
