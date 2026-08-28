@@ -308,20 +308,11 @@
   font-family: var(--font-family-monospace);
   font-size: var(--font-size-200);
 }
-/* 手順はそのまま貼れる形で出す。折り返すと貼り付け時に壊れるため横スクロールさせる */
-.ntrip-unavailable-command {
-  margin: 0;
-  padding: var(--spacing-m);
-  border-radius: var(--border-radius-medium);
-  background: var(--color-neutral-background-3);
-  overflow-x: auto;
-}
-.ntrip-unavailable-command code {
-  padding: 0;
-  background: none;
-  white-space: pre;
-  line-height: var(--line-height-300);
-  color: var(--color-neutral-foreground-1);
+/* 取得先の URL。そのまま読めて選べるよう等幅で置き、狭い画面では素直に折り返す */
+.ntrip-unavailable .ntrip-unavailable-repository {
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-200);
+  overflow-wrap: anywhere;
 }
 .ntrip-unavailable a {
   color: var(--color-brand-foreground-1);

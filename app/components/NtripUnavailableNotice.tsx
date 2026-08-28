@@ -24,20 +24,18 @@ function NtripUnavailableNotice() {
       </p>
 
       <p>
-        お使いになる場合は、リポジトリを取得してご自身のマシンで起動してください。
-        追加の設定は要りません。<code>localhost</code> で開いた時点で有効になります。
+        お使いになる場合は、下記のリポジトリをご自身のマシンで起動してください。
+        導入手順は README に書いてあります。追加の設定は要りません。
+        <code>localhost</code> で開いた時点で有効になります。
       </p>
 
-      <pre className="ntrip-unavailable-command">
-        <code>
-          {`git clone ${REPOSITORY_URL}.git\ncd takion-clas-rtk-web-monitor\nnpm install\nnpm run dev`}
-        </code>
-      </pre>
+      <p className="ntrip-unavailable-repository">
+        <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">{REPOSITORY_URL}</a>
+      </p>
 
       <p className="field-note">
         CLAS（みちびき L6）による補正は、公開版でもそのまま使えます。
         受信機が衛星から直接受け取るため、インターネット接続も中継サーバーも要りません。
-        <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">ソースコードと導入手順</a>
       </p>
     </section>
   );
