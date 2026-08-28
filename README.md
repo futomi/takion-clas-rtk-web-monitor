@@ -120,12 +120,6 @@ tests/          app/lib 配下に対する単体テスト
 
 `app/lib` 配下は DOM にも React にも依存しないため、そのまま単体テストできます。
 
-画面のデザインは Microsoft の [Fluent 2 Design System](https://fluent2.microsoft.design/) に沿っています。
-型ランプ・配色・角丸・余白・エレベーション・モーション・フォーカス表示は
-すべて `app/styles/base.css` のトークンとして定義してあり、
-他のスタイルシートは値を持たずにそれを参照します。配色は Fluent 2 のニュートラル ramp と、
-アプリの識別色である緑を Fluent と同じ 16 段構成へ組み直したブランド ramp の 2 系統です。
-
 ### コマンド
 
 ```bash
