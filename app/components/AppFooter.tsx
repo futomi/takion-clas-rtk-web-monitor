@@ -9,7 +9,7 @@ export default function AppFooter() {
           rel="noopener noreferrer"
           className="footer-link"
         >
-          © 2026 futomi Co., Ltd. — Futomi Hatano, CEO
+          © 2026 futomi Co., Ltd. — Futomi Hatano
         </a>
       </p>
     </footer>
