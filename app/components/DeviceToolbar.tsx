@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { BAUD_RATE_OPTIONS } from '../lib/constants';
 import { formatHex } from '../lib/format';
 import type { ConnectionState } from '../lib/types';
@@ -14,7 +15,7 @@ type DeviceToolbarProps = {
 };
 
 /** 受信機への接続操作パネル */
-export default function DeviceToolbar({
+function DeviceToolbar({
   connection,
   isSupported,
   portInfo,
@@ -71,3 +72,10 @@ export default function DeviceToolbar({
     </section>
   );
 }
+
+/*
+ * 親は経過時間の表示のため毎秒、測位状態の更新のためさらに細かく再描画される。
+ * このパネルは自分が受け取る値にしか依存しないので memo で包み、
+ * 関係のない再描画に巻き込まれないようにする。
+ */
+export default memo(DeviceToolbar);

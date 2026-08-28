@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { formatValue } from '../lib/format';
 import type { Telemetry } from '../lib/telemetry';
 
@@ -11,7 +12,7 @@ const coursePercent = (course: number | undefined) =>
   Math.min(100, Math.max(0, (course ?? 0) / 3.6));
 
 /** 移動情報パネル */
-export default function MotionPanel({ telemetry }: { telemetry: Telemetry }) {
+function MotionPanel({ telemetry }: { telemetry: Telemetry }) {
   return (
     <article className="motion-panel panel">
       <div className="panel-heading">
@@ -37,3 +38,10 @@ export default function MotionPanel({ telemetry }: { telemetry: Telemetry }) {
     </article>
   );
 }
+
+/*
+ * 親は経過時間の表示のため毎秒、測位状態の更新のためさらに細かく再描画される。
+ * このパネルは自分が受け取る値にしか依存しないので memo で包み、
+ * 関係のない再描画に巻き込まれないようにする。
+ */
+export default memo(MotionPanel);

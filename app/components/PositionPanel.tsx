@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { ActiveSource, QualityDisplay } from '../lib/correctionSource';
 import { hasPosition, type Telemetry } from '../lib/telemetry';
 
@@ -40,7 +41,7 @@ function MetaItem({ label, value, unit, digits = 3 }: {
 }
 
 /** 現在位置パネル */
-export default function PositionPanel({ telemetry, activeSource, quality }: PositionPanelProps) {
+function PositionPanel({ telemetry, activeSource, quality }: PositionPanelProps) {
   const positioned = hasPosition(telemetry);
 
   return (
@@ -67,3 +68,10 @@ export default function PositionPanel({ telemetry, activeSource, quality }: Posi
     </article>
   );
 }
+
+/*
+ * 親は経過時間の表示のため毎秒、測位状態の更新のためさらに細かく再描画される。
+ * このパネルは自分が受け取る値にしか依存しないので memo で包み、
+ * 関係のない再描画に巻き込まれないようにする。
+ */
+export default memo(PositionPanel);

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { ConnectionState } from '../lib/types';
 
 /**
@@ -14,7 +15,7 @@ const CONNECTION_TEXT: Record<ConnectionState, string> = {
 };
 
 /** アプリ名と受信機の接続状態を示すヘッダー */
-export default function AppHeader({ connection }: { connection: ConnectionState }) {
+function AppHeader({ connection }: { connection: ConnectionState }) {
   return (
     <header className="topbar">
       <div className="brand-lockup">
@@ -33,3 +34,10 @@ export default function AppHeader({ connection }: { connection: ConnectionState 
     </header>
   );
 }
+
+/*
+ * 親は経過時間の表示のため毎秒、測位状態の更新のためさらに細かく再描画される。
+ * このパネルは自分が受け取る値にしか依存しないので memo で包み、
+ * 関係のない再描画に巻き込まれないようにする。
+ */
+export default memo(AppHeader);

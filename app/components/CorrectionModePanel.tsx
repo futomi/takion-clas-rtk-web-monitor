@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { CorrectionMode, NtripStatus } from '../lib/types';
 
 type CorrectionModePanelProps = {
@@ -62,7 +63,7 @@ function currentStatus(
 }
 
 /** 補正ソースの切り替えパネル */
-export default function CorrectionModePanel({
+function CorrectionModePanel({
   mode,
   onModeChange,
   ntripStatus,
@@ -97,3 +98,10 @@ export default function CorrectionModePanel({
     </section>
   );
 }
+
+/*
+ * 親は経過時間の表示のため毎秒、測位状態の更新のためさらに細かく再描画される。
+ * このパネルは自分が受け取る値にしか依存しないので memo で包み、
+ * 関係のない再描画に巻き込まれないようにする。
+ */
+export default memo(CorrectionModePanel);
