@@ -137,7 +137,6 @@ npm run check      # lint + typecheck + test をまとめて実行
 
 | 変数名 | 既定値 | 用途 |
 | --- | --- | --- |
-| `SITE_ORIGIN` | `http://localhost:3000` | OGP 画像などの絶対 URL を組み立てる基準オリジン |
 | `NTRIP_ALLOWED_HOSTS` | （未設定＝プライベート宛でなければ許可） | NTRIP Caster として接続を許可するホストのカンマ区切り一覧 |
 | `NTRIP_MAX_CONCURRENT_STREAMS` | `4` | NTRIP ストリーム中継の同時接続数の上限 |
 | `NTRIP_MAX_CONCURRENT_SOURCETABLES` | `4` | 配信局一覧（Source-table）取得の同時実行数の上限 |
