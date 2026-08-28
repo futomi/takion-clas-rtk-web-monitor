@@ -51,6 +51,15 @@ export type CorrectionMode = 'clas' | 'ntrip' | 'none';
 export type NtripStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
 /**
+ * ネットワーク RTK をどこまで提供するか。ビルド時に決まる。
+ *
+ * - `none`: 中継 API が成果物に含まれない（静的書き出し）。どこから開いても提供できない
+ * - `loopback`: 既定。ローカルから開いたときだけ提供する
+ * - `always`: `NTRIP_ENABLED=true`。中継を意図して立てる場合
+ */
+export type NtripAvailability = 'none' | 'loopback' | 'always';
+
+/**
  * NTRIP クライアントのうち、設定パネルが描画に使う部分だけを切り出した形。
  * パネルへ接続操作そのものを渡さないため、接続の開始・停止はコールバック経由に限られる。
  */

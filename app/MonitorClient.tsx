@@ -24,7 +24,14 @@ import { useNtripForm } from './hooks/useNtripForm';
 import { useTrackRecorder } from './hooks/useTrackRecorder';
 import { DEFAULT_BAUD_RATE } from './lib/constants';
 import { formatSecondsAgo } from './lib/format';
-import type { CorrectionMode, LogCategoryFilter, LogDisplayMode, LogLine, NtripLiveState } from './lib/types';
+import type {
+  CorrectionMode,
+  LogCategoryFilter,
+  LogDisplayMode,
+  LogLine,
+  NtripAvailability,
+  NtripLiveState,
+} from './lib/types';
 
 /**
  * 画面全体の組み立て役。
@@ -33,11 +40,11 @@ import type { CorrectionMode, LogCategoryFilter, LogDisplayMode, LogLine, NtripL
  * ここではそれらを繋いでセクションを並べることに徹する。
  */
 type MonitorClientProps = {
-  /** ループバック以外から開いた場合もネットワーク RTK を有効にするか */
-  isNtripAlwaysEnabled?: boolean;
+  /** ネットワーク RTK の提供方針。ビルド時に決まる */
+  ntripAvailability?: NtripAvailability;
 };
 
-export default function MonitorClient({ isNtripAlwaysEnabled = false }: MonitorClientProps) {
+export default function MonitorClient({ ntripAvailability = 'loopback' }: MonitorClientProps) {
   const isSupported = useIsSerialSupported();
   const clock = useClock();
 
@@ -48,7 +55,8 @@ export default function MonitorClient({ isNtripAlwaysEnabled = false }: MonitorC
    * 判定の根拠は API 側（{@link ./lib/server/ntripAvailability}）と揃えてある。
    */
   const isLoopbackOrigin = useIsLoopbackOrigin();
-  const isNtripAvailable = isNtripAlwaysEnabled || isLoopbackOrigin;
+  const isNtripAvailable =
+    ntripAvailability === 'always' || (ntripAvailability === 'loopback' && isLoopbackOrigin);
 
   const [baudRate, setBaudRate] = useState(DEFAULT_BAUD_RATE);
   const [mode, setMode] = useState<CorrectionMode>('clas');
