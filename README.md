@@ -124,6 +124,7 @@ npm run check      # lint + typecheck + test をまとめて実行
 | `NTRIP_ALLOWED_HOSTS` | （未設定＝プライベート宛でなければ許可） | NTRIP Caster として接続を許可するホストのカンマ区切り一覧 |
 | `NTRIP_MAX_CONCURRENT_STREAMS` | `4` | NTRIP ストリーム中継の同時接続数の上限 |
 | `NTRIP_MAX_CONCURRENT_SOURCETABLES` | `4` | 配信局一覧（Source-table）取得の同時実行数の上限 |
+| `NTRIP_SOURCETABLE_CACHE_SECONDS` | `600` | 配信局一覧を控えておく長さ（秒）。`0` でキャッシュを無効化します |
 
 ### 接続先ホストの制限
 
@@ -173,6 +174,28 @@ NTRIP_MAX_CONCURRENT_STREAMS=8 NTRIP_MAX_CONCURRENT_SOURCETABLES=8 npm run start
 
 これはあくまで最後の歯止めです。インターネットへ公開する場合は、リバースプロキシなど
 前段でのレート制限とアクセス制限を併せて設けてください。
+
+### 配信局一覧のキャッシュ
+
+配信局の一覧は、そこそこの大きさがある割に中身がほとんど変わりません（rtk2go の実測で
+694 局・生データ 109 KB）。そこで取得済みの応答をプロセス内に一定時間（既定 10 分）だけ控え、
+その間の再取得は Caster へ行かずに返します。
+
+控えが切れた直後に依頼が重なった場合は、Caster への取得を 1 本にまとめて相乗りさせます。
+期限切れのたびに人数ぶんの取得が飛ぶのを防ぐためです。
+
+```bash
+NTRIP_SOURCETABLE_CACHE_SECONDS=1800 npm run start   # 30 分に伸ばす
+NTRIP_SOURCETABLE_CACHE_SECONDS=0 npm run start      # 無効化する
+```
+
+控える宛先は 4 件までで、上限に達すると古い宛先から落とします。1 件の大きさは Caster 次第で、
+受信を打ち切る上限（4 MB）ぶんまで膨らみ得るためです。応答の `X-Sourcetable-Cache` ヘッダに
+`hit` / `miss` が入るので、効いているかはここで確かめられます。
+
+なお公開環境では、利用者ぶんの取得がすべてサーバー 1 台の IP から出ていきます。
+rtk2go は過大なアクセスを繰り返す IP をブロックする方針を明示しているため、
+キャッシュを無効化したまま公開するのは避けてください。
 
 ### 軌跡ログの保存先
 

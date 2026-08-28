@@ -5,12 +5,14 @@ import {
   isValidPort,
   parseSourceTable,
   toMountpointSummary,
+  type SourceTableResponse,
 } from '@/app/lib/ntrip';
 import { buildSourceTableRequest } from '@/app/lib/ntripHeader';
-import { NtripRequestError, toNtripErrorResponse } from '@/app/lib/server/apiError';
+import { NtripBusyError, NtripRequestError, toNtripErrorResponse } from '@/app/lib/server/apiError';
 import { openCasterSocket } from '@/app/lib/server/casterSocket';
-import { resolveSafeTarget } from '@/app/lib/server/hostGuard';
+import { resolveSafeTarget, type ResolvedTarget } from '@/app/lib/server/hostGuard';
 import { assertSameOrigin } from '@/app/lib/server/originGuard';
+import { loadSourceTable, readSourceTableCache } from '@/app/lib/server/sourceTableCache';
 import { acquireSourceTableSlot } from '@/app/lib/server/streamLimit';
 
 /** net モジュールを使うため Node.js ランタイムを明示する */
@@ -80,6 +82,72 @@ function fetchSourceTable(
   });
 }
 
+/**
+ * Caster から取得し、そのまま返せる JSON 本文へ組み立てる。
+ *
+ * 画面が読まない列は載せない。全 17 列をそのまま返すと、配信局を多く抱える Caster では
+ * 応答がそのぶん膨らみ、ブラウザ側の解析も重くなる（rtk2go の実測で 109 KB → 68 KB）。
+ *
+ * 直列化まで済ませた文字列を返すのは、これが {@link @/app/lib/server/sourceTableCache} の
+ * 控える単位だから。控えを返すときに組み立て直さずに済む。
+ */
+async function buildSourceTableBody(
+  target: ResolvedTarget,
+  port: number,
+  signal: AbortSignal,
+): Promise<string> {
+  // 検査を通した正規化済みのホスト名を名乗る
+  const rawData = await fetchSourceTable(target.address, target.hostname, port, signal);
+  const records = parseSourceTable(rawData);
+  const payload: SourceTableResponse = {
+    host: target.hostname,
+    port,
+    count: records.length,
+    records: records.map(toMountpointSummary),
+  };
+  return JSON.stringify(payload);
+}
+
+/**
+ * 組み立て済みの本文をそのまま返す。
+ *
+ * 鮮度はサーバー側の控えで一元管理するため、ブラウザには持たせない。
+ * 期限が二重になると、どちらの都合で古い一覧が出ているのか追えなくなる。
+ */
+function sourceTableResponse(body: string, fromCache: boolean): NextResponse {
+  return new NextResponse(body, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+      'X-Sourcetable-Cache': fromCache ? 'hit' : 'miss',
+    },
+  });
+}
+
+/**
+ * 同時実行の枠を確保してから取得する。
+ *
+ * 枠が数えるのは Caster への接続 1 本ぶんなので、確保するのは実際に接続を開く
+ * この取得だけでよい。相乗りしている依頼は接続もバッファも増やさないため、
+ * ここで枠を求めない（求めると、待っているだけの依頼が枠を埋めてしまう）。
+ */
+function fetchWithSlot(target: ResolvedTarget, port: number) {
+  return async (signal: AbortSignal): Promise<string> => {
+    // 1 回の取得につき TCP 1 本と最大 4 MB のバッファを最長 8 秒抱えるため、
+    // 同時に走る本数を抑える
+    const releaseSlot = acquireSourceTableSlot();
+    if (!releaseSlot) {
+      throw new NtripBusyError('配信局一覧の取得が混み合っています。しばらく待って再試行してください。');
+    }
+
+    try {
+      return await buildSourceTableBody(target, port, signal);
+    } finally {
+      releaseSlot();
+    }
+  };
+}
+
 export async function GET(request: NextRequest) {
   // この GET はカスタムヘッダを持たずプリフライトが飛ばないため、
   // 外部サイトが訪問者のブラウザから呼び出せてしまう。関門はストリーム側と同じ順に並べ、
@@ -98,32 +166,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '無効なポート番号です。' }, { status: 400 });
   }
 
-  // 1 リクエストにつき TCP 1 本と最大 4 MB のバッファを最長 8 秒抱えるため、
-  // 同時に走る本数を抑える
-  const releaseSlot = acquireSourceTableSlot();
-  if (!releaseSlot) {
-    return NextResponse.json(
-      { error: '配信局一覧の取得が混み合っています。しばらく待って再試行してください。' },
-      { status: 503 },
-    );
-  }
-
+  // 控えを引く前に接続先を検査する。許可リストの変更が、控えの残っている宛先にも
+  // その場で効くようにするため（検査を飛ばすと、外した宛先を期限切れまで返し続ける）
+  let target: ResolvedTarget;
   try {
-    const target = await resolveSafeTarget(host);
-    // 検査を通した正規化済みのホスト名を名乗る
-    const rawData = await fetchSourceTable(target.address, target.hostname, port, request.signal);
-    const records = parseSourceTable(rawData);
-    // 画面が読まない列は載せない。rtk2go のように配信局が 1 万件規模の Caster では、
-    // 全 17 列をそのまま返すと応答が数 MB になり、その解析だけでブラウザが止まる
-    return NextResponse.json({
-      host: target.hostname,
-      port,
-      count: records.length,
-      records: records.map(toMountpointSummary),
-    });
+    target = await resolveSafeTarget(host);
   } catch (error) {
     return toNtripErrorResponse(error, 'Source-tableの取得に失敗しました。');
-  } finally {
-    releaseSlot();
+  }
+
+  const cacheKey = `${target.hostname}:${port}`;
+
+  // 期限内の控えがあれば Caster へは行かない。TCP もバッファも要らないので、
+  // 同時実行の枠も取らずに返す
+  const cached = readSourceTableCache(cacheKey);
+  if (cached !== null) return sourceTableResponse(cached, true);
+
+  try {
+    const { body, fromCache } = await loadSourceTable(cacheKey, fetchWithSlot(target, port), request.signal);
+    return sourceTableResponse(body, fromCache);
+  } catch (error) {
+    return toNtripErrorResponse(error, 'Source-tableの取得に失敗しました。');
   }
 }

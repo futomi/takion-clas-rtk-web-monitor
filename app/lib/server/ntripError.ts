@@ -13,3 +13,16 @@ export class NtripRequestError extends Error {
     this.name = 'NtripRequestError';
   }
 }
+
+/**
+ * 受け入れ余力が無いことを表す。
+ *
+ * 入力にも上流にも非はなく、こちら側が同時実行の枠を使い切っているだけなので、
+ * 障害（502）とは区別して 503 として返す。変換は {@link ./apiError} が行う。
+ */
+export class NtripBusyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NtripBusyError';
+  }
+}
