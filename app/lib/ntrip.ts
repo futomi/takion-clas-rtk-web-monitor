@@ -24,8 +24,9 @@ export type MountpointRecord = {
  * 配信局のうち、画面が実際に使う列だけを取り出した形。
  *
  * Source-table には STR 行の全 17 列が載るが、選択 UI が読むのは名前・形式・国と
- * 距離計算用の座標だけで、残りの列は一度も参照されない。Caster によっては
- * 配信局が 1 万件を超えるため、ブラウザへ渡す前にここへ落として転送量を削る。
+ * 距離計算用の座標だけで、残りの列は一度も参照されない。公開 Caster では配信局が
+ * 数百局規模になるため、ブラウザへ渡す前にここへ落として転送量を削る
+ * （rtk2go の実測で、生の Source-table 109 KB に対し落とした後は 68 KB）。
  */
 export type MountpointSummary = Pick<
   MountpointRecord,
