@@ -28,3 +28,18 @@ export function toNtripErrorResponse(error: unknown, fallbackMessage: string): N
   }
   return NextResponse.json({ error: fallbackMessage }, { status: 502 });
 }
+
+/**
+ * ローカル実行時のみ提供する機能への呼び出しを断る。
+ *
+ * 403 ではなく 404 を返すのは、公開環境では「この経路は存在しない」という扱いに
+ * 揃えたいため。文面を添えてあるのは、ローカルで動かしているつもりの利用者が
+ * ここへ来たときに、何をすればよいかが分かるようにするため
+ * （ソースは公開しているので、経路の存在自体は秘密ではない）。
+ */
+export function ntripUnavailableResponse(): NextResponse {
+  return NextResponse.json(
+    { error: 'ネットワークRTK（NTRIP）はローカル実行時のみ利用できます。' },
+    { status: 404 },
+  );
+}

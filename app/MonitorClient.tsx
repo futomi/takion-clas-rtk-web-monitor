@@ -12,10 +12,12 @@ import MapSection from './components/MapSection';
 import MessageDictionaryModal from './components/MessageDictionaryModal';
 import MotionPanel from './components/MotionPanel';
 import NtripConfigPanel from './components/NtripConfigPanel';
+import NtripUnavailableNotice from './components/NtripUnavailableNotice';
 import PositionPanel from './components/PositionPanel';
 import { useClock } from './hooks/useClock';
 import { useCorrectionStatus } from './hooks/useCorrectionStatus';
 import { useGnssReceiver } from './hooks/useGnssReceiver';
+import { useIsLoopbackOrigin } from './hooks/useIsLoopbackOrigin';
 import { useIsSerialSupported } from './hooks/useIsSerialSupported';
 import { useNtripClient } from './hooks/useNtripClient';
 import { useNtripForm } from './hooks/useNtripForm';
@@ -30,9 +32,23 @@ import type { CorrectionMode, LogCategoryFilter, LogDisplayMode, LogLine, NtripL
  * 受信機・NTRIP・設定フォーム・補正ソース判定はいずれもフックへ委ね、
  * ここではそれらを繋いでセクションを並べることに徹する。
  */
-export default function MonitorClient() {
+type MonitorClientProps = {
+  /** ループバック以外から開いた場合もネットワーク RTK を有効にするか */
+  isNtripAlwaysEnabled?: boolean;
+};
+
+export default function MonitorClient({ isNtripAlwaysEnabled = false }: MonitorClientProps) {
   const isSupported = useIsSerialSupported();
   const clock = useClock();
+
+  /**
+   * ネットワーク RTK を出してよいか。
+   *
+   * 公開環境では中継 API が 404 を返すため、フォームを出しても接続できない。
+   * 判定の根拠は API 側（{@link ./lib/server/ntripAvailability}）と揃えてある。
+   */
+  const isLoopbackOrigin = useIsLoopbackOrigin();
+  const isNtripAvailable = isNtripAlwaysEnabled || isLoopbackOrigin;
 
   const [baudRate, setBaudRate] = useState(DEFAULT_BAUD_RATE);
   const [mode, setMode] = useState<CorrectionMode>('clas');
@@ -92,11 +108,19 @@ export default function MonitorClient() {
     if (mode === nextMode) return;
     if (mode === 'ntrip' && nextMode !== 'ntrip') ntripStop();
     setMode(nextMode);
-    // NTRIP を初めて開いたときは配信局一覧を先読みしておく
-    if (nextMode === 'ntrip' && ntrip.sourceTable.length === 0 && !ntrip.isFetchingSources) {
+    // NTRIP を初めて開いたときは配信局一覧を先読みしておく。
+    // 使えない環境では 404 を取りに行くだけなので、そもそも投げない
+    if (isNtripAvailable && nextMode === 'ntrip' && ntrip.sourceTable.length === 0 && !ntrip.isFetchingSources) {
       void handleRefreshSources();
     }
-  }, [mode, ntripStop, ntrip.sourceTable.length, ntrip.isFetchingSources, handleRefreshSources]);
+  }, [
+    mode,
+    ntripStop,
+    isNtripAvailable,
+    ntrip.sourceTable.length,
+    ntrip.isFetchingSources,
+    handleRefreshSources,
+  ]);
 
   const handleNtripConnect = useCallback(() => {
     void ntripStart({
@@ -175,7 +199,9 @@ export default function MonitorClient() {
         l6Summary={receiver.l6Summary}
       />
 
-      {mode === 'ntrip' && (
+      {mode === 'ntrip' && !isNtripAvailable && <NtripUnavailableNotice />}
+
+      {mode === 'ntrip' && isNtripAvailable && (
         <NtripConfigPanel
           form={ntripForm}
           onFormChange={updateNtripForm}

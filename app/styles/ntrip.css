@@ -276,3 +276,53 @@
   font-weight: var(--font-weight-bold);
   letter-spacing: .04em;
 }
+
+/*
+ * 公開版でネットワーク RTK を選んだときの案内。
+ *
+ * 左辺の色帯は接続設定パネルと同じにしてある。同じ場所へ現れる別の中身なので、
+ * 「NTRIP を選んだ結果として出ている」ことが見た目で繋がるように。
+ * 帯の色だけを情報色から中立色へ落として、操作できる面ではないことを示す。
+ */
+.ntrip-unavailable {
+  padding: var(--spacing-l);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-m);
+  border-left: 4px solid var(--color-neutral-stroke-1);
+}
+.ntrip-unavailable p {
+  margin: 0;
+  font-size: var(--font-size-300);
+  line-height: var(--line-height-400);
+  color: var(--color-neutral-foreground-2);
+}
+/* 理由を述べる最初の段落だけ、本文色を上げて読ませる */
+.ntrip-unavailable .ntrip-unavailable-lead {
+  color: var(--color-neutral-foreground-1);
+}
+.ntrip-unavailable code {
+  padding: 0 var(--spacing-xxs);
+  border-radius: var(--border-radius-small);
+  background: var(--color-neutral-background-3);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-200);
+}
+/* 手順はそのまま貼れる形で出す。折り返すと貼り付け時に壊れるため横スクロールさせる */
+.ntrip-unavailable-command {
+  margin: 0;
+  padding: var(--spacing-m);
+  border-radius: var(--border-radius-medium);
+  background: var(--color-neutral-background-3);
+  overflow-x: auto;
+}
+.ntrip-unavailable-command code {
+  padding: 0;
+  background: none;
+  white-space: pre;
+  line-height: var(--line-height-300);
+  color: var(--color-neutral-foreground-1);
+}
+.ntrip-unavailable a {
+  color: var(--color-brand-foreground-1);
+}

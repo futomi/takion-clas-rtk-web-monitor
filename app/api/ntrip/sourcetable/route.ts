@@ -8,9 +8,15 @@ import {
   type SourceTableResponse,
 } from '@/app/lib/ntrip';
 import { buildSourceTableRequest } from '@/app/lib/ntripHeader';
-import { NtripBusyError, NtripRequestError, toNtripErrorResponse } from '@/app/lib/server/apiError';
+import {
+  NtripBusyError,
+  NtripRequestError,
+  ntripUnavailableResponse,
+  toNtripErrorResponse,
+} from '@/app/lib/server/apiError';
 import { openCasterSocket } from '@/app/lib/server/casterSocket';
 import { resolveSafeTarget, type ResolvedTarget } from '@/app/lib/server/hostGuard';
+import { isNtripAvailable } from '@/app/lib/server/ntripAvailability';
 import { assertSameOrigin } from '@/app/lib/server/originGuard';
 import { loadSourceTable, readSourceTableCache } from '@/app/lib/server/sourceTableCache';
 import { acquireSourceTableSlot } from '@/app/lib/server/streamLimit';
@@ -149,6 +155,10 @@ function fetchWithSlot(target: ResolvedTarget, port: number) {
 }
 
 export async function GET(request: NextRequest) {
+  // 公開環境では中継そのものを提供しない。ソケットも入力検査も通らないよう、
+  // 何をするより先に畳む
+  if (!isNtripAvailable(request.headers)) return ntripUnavailableResponse();
+
   // この GET はカスタムヘッダを持たずプリフライトが飛ばないため、
   // 外部サイトが訪問者のブラウザから呼び出せてしまう。関門はストリーム側と同じ順に並べ、
   // まず呼び出し元を確かめる（入力の当否で 400 と 403 を返し分けない）

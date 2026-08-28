@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DEFAULT_NTRIP_PASSWORD, DEFAULT_NTRIP_PORT, isValidPort } from '@/app/lib/ntrip';
-import { toNtripErrorResponse } from '@/app/lib/server/apiError';
+import { ntripUnavailableResponse, toNtripErrorResponse } from '@/app/lib/server/apiError';
 import { createRtcmStream, openCasterSession, type NtripStreamParams } from '@/app/lib/server/casterStream';
 import { resolveSafeTarget } from '@/app/lib/server/hostGuard';
+import { isNtripAvailable } from '@/app/lib/server/ntripAvailability';
 import { assertSameOrigin } from '@/app/lib/server/originGuard';
 import { readJsonBody } from '@/app/lib/server/requestBody';
 import { acquireStreamSlot } from '@/app/lib/server/streamLimit';
@@ -41,6 +42,10 @@ async function readParams(request: NextRequest): Promise<NtripStreamParams | nul
 }
 
 export async function POST(request: NextRequest) {
+  // 公開環境では中継そのものを提供しない。ソケットも入力検査も通らないよう、
+  // 何をするより先に畳む
+  if (!isNtripAvailable(request.headers)) return ntripUnavailableResponse();
+
   // JSON の POST なのでプリフライトが越境呼び出しを阻むが、
   // Source-table 側と同じ関門を通しておき、防御を経路ごとにばらけさせない
   try {
