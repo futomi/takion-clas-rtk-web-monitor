@@ -65,3 +65,35 @@ export const EMPTY_FEATURE_COLLECTION: FeatureCollection<Polygon> = {
   type: 'FeatureCollection',
   features: [],
 };
+
+/** WGS84 楕円体の長半径（m）と第一離心率の 2 乗。局所平面への換算で使う */
+const WGS84_SEMI_MAJOR_AXIS_M = 6_378_137;
+const WGS84_ECCENTRICITY_SQUARED = 0.006_694_379_990_14;
+
+/** 局所平面上の変位（m）。東と北が正 */
+export type LocalOffset = { east: number; north: number };
+
+/**
+ * 原点から見た地点の変位を、東西・南北のメートルで返す。
+ *
+ * 原点まわりで地球を平面とみなし、原点の緯度における子午線曲率半径と卯酉線曲率半径で
+ * 度をメートルへ換算する。数十 m の範囲なら mm 未満の誤差に収まるので、
+ * 地図タイルでは見えない cm 単位の動きを白紙の平面に描く用途に足りる。
+ * 誤差円（{@link createAccuracyCircle}）より厳密にしているのは、こちらは巻尺と見比べられるため。
+ */
+export function toLocalOffsetMeters(
+  originLatitude: number,
+  originLongitude: number,
+  latitude: number,
+  longitude: number,
+): LocalOffset {
+  const phi = toRadians(originLatitude);
+  const sinPhi = Math.sin(phi);
+  const denominator = Math.sqrt(1 - WGS84_ECCENTRICITY_SQUARED * sinPhi * sinPhi);
+  const meridionalRadius = (WGS84_SEMI_MAJOR_AXIS_M * (1 - WGS84_ECCENTRICITY_SQUARED)) / denominator ** 3;
+  const primeVerticalRadius = WGS84_SEMI_MAJOR_AXIS_M / denominator;
+  return {
+    east: toRadians(longitude - originLongitude) * primeVerticalRadius * Math.cos(phi),
+    north: toRadians(latitude - originLatitude) * meridionalRadius,
+  };
+}

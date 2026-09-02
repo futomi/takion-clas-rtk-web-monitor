@@ -10,7 +10,7 @@ import { PvtOutputNegotiator } from '../lib/pvtOutputNegotiator';
 import { parseRtcm } from '../lib/rtcm';
 import { SatelliteTracker } from '../lib/satelliteTracker';
 import { parseUbx } from '../lib/ubx';
-import type { Telemetry } from '../lib/telemetry';
+import { dropNmeaPositionCoveredByUbx, positionEpoch, type Telemetry } from '../lib/telemetry';
 import type { ConnectionState, LogLine } from '../lib/types';
 import { getSerialApi, type SerialPortInfo, type SerialPortLike } from '../lib/webSerial';
 
@@ -104,6 +104,12 @@ export function useGnssReceiver() {
 
   const trackerRef = useRef(new SatelliteTracker());
   const nextLogIdRef = useRef(createLogIdGenerator());
+  /**
+   * NAV-PVT が座標を出した最新のエポック。
+   * 同じエポックの GGA / RMC が後から来ても、粗い座標で上書きさせないための控え
+   * （{@link dropNmeaPositionCoveredByUbx}）。
+   */
+  const ubxPositionEpochRef = useRef<string | undefined>(undefined);
 
   const negotiatorRef = useRef<PvtOutputNegotiator | null>(null);
   negotiatorRef.current ??= new PvtOutputNegotiator({
@@ -191,7 +197,7 @@ export function useGnssReceiver() {
           tracker.applyGsa(parsed.gsa, receivedAt);
           sawGsa = true;
         }
-        Object.assign(combinedUpdate, parsed.update);
+        Object.assign(combinedUpdate, dropNmeaPositionCoveredByUbx(parsed.update, ubxPositionEpochRef.current));
         entries.push(createLogEntry(parsed, frame.text, receivedAt, nextLogIdRef.current()));
         continue;
       }
@@ -200,6 +206,9 @@ export function useGnssReceiver() {
         negotiator.handleFrame(frame.frame);
         // チェックサムは走査時に済んでいる。同じ計算を繰り返さないよう結果を渡す
         const parsed = parseUbx(frame.frame, frame.valid);
+        if (parsed.type === 'PVT' && parsed.update.latitude !== undefined) {
+          ubxPositionEpochRef.current = positionEpoch(parsed.update.timeUtc);
+        }
         if (parsed.type === 'QZSSL6') {
           l6At = receivedAt;
           if (parsed.summary) l6Text = parsed.summary;
@@ -316,6 +325,7 @@ export function useGnssReceiver() {
   const resetSession = useCallback(() => {
     trackerRef.current.reset();
     negotiator.reset();
+    ubxPositionEpochRef.current = undefined;
   }, [negotiator]);
 
   const disconnect = useCallback(async (unexpected = false) => {

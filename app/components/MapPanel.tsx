@@ -27,6 +27,8 @@ type MapPanelProps = {
   track: TrackPoint[];
   /** 地図を画面いっぱいへ広げているか。操作方法の切り替えに使う */
   isExpanded: boolean;
+  /** 地図が画面に出ているか。拡大プロットへ切り替えている間は隠れる */
+  isVisible: boolean;
 };
 
 const JAPAN_CENTER: [number, number] = [138.2, 36.2];
@@ -111,6 +113,7 @@ export default function MapPanel({
   qualityTone,
   track,
   isExpanded,
+  isVisible,
 }: MapPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -290,6 +293,8 @@ export default function MapPanel({
    *
    * 併せて大きさも取り直す。既定の trackResize でも追従するが、
    * こちらは切り替えた直後の同じ描画で反映され、伸びた一瞬が出ない。
+   * 拡大プロットから地図へ戻ったときも同じ理由で取り直す。隠れている間の大きさは 0 なので、
+   * 取り直さないと戻った瞬間だけ前の大きさのまま描かれる。
    */
   useEffect(() => {
     const map = mapRef.current;
@@ -297,7 +302,7 @@ export default function MapPanel({
     if (isExpanded) map.cooperativeGestures.disable();
     else map.cooperativeGestures.enable();
     map.resize();
-  }, [isExpanded, mapLoaded]);
+  }, [isExpanded, isVisible, mapLoaded]);
 
   // 軌跡の反映。点が積まれるのは記録間隔ごと（既定 1 秒）なので、
   // 配列の入れ替わりに合わせてそのまま描き直して差し支えない。

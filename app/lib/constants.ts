@@ -82,3 +82,18 @@ export const TRACK_GAP_MS = 30000;
 export const TRACK_DISTANCE_EPSILON_M = 0.3;
 /** 軌跡点を IndexedDB へ書き出す間隔（ms）。最悪でもこの時間ぶんの取りこぼしで済む */
 export const TRACK_FLUSH_INTERVAL_MS = 2000;
+
+// ---- 拡大プロット ----
+/** 拡大プロットの表示半幅（m）。原点からこの距離までが短辺に収まる。UI から選択できる候補 */
+export const PLOT_RANGE_OPTIONS = [1, 2, 5] as const;
+export const DEFAULT_PLOT_RANGE_M = 1;
+/** 拡大プロットに残す尾の長さ（ms）。これより古い点は薄れて消える */
+export const PLOT_TRAIL_MS = 60000;
+/** 拡大プロットが抱える点数の上限。高レート出力の受信機でも描画の負荷を一定に保つ */
+export const PLOT_MAX_SAMPLES = 1200;
+
+// ---- 記録の再生 ----
+/** 再生で 1 点あたり待つ上限（ms）。記録の欠測をそのまま待たされないよう詰める */
+export const REPLAY_MAX_STEP_MS = 2000;
+/** 再生で 1 点あたり待つ下限（ms）。時刻が巻き戻った記録でも止まらないようにする */
+export const REPLAY_MIN_STEP_MS = 50;

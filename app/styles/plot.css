@@ -1,0 +1,225 @@
+/* 拡大プロット（現在地マップの切り替え先）と、記録ファイルの再生操作 */
+
+/*
+ * 地図とプロットの切り替え。
+ * 高さは全画面ボタンと同じ 32px に揃え、押されている側を brand の淡い面で示す。
+ */
+.map-view-switch {
+  flex: 0 0 auto;
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-medium);
+  background-color: var(--color-neutral-background-1);
+}
+.map-view-switch button {
+  box-sizing: border-box;
+  height: 30px;
+  padding: 0 var(--spacing-m);
+  border: none;
+  background: transparent;
+  color: var(--color-neutral-foreground-2);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-faster) var(--curve-easy-ease),
+    color var(--duration-faster) var(--curve-easy-ease);
+}
+.map-view-switch button + button { border-left: 1px solid var(--color-neutral-stroke-1); }
+.map-view-switch button:hover { background-color: var(--color-neutral-background-3); }
+.map-view-switch button[aria-pressed='true'] {
+  background-color: var(--color-brand-background-2);
+  color: var(--color-brand-foreground-1);
+}
+
+/*
+ * 地図を隠している間も MapLibre のインスタンスは残す。
+ * 作り直すとタイルの取り直しと追従状態の消失が起きるため、包みを消すだけにする。
+ */
+.map-view { display: contents; }
+.map-view[hidden] { display: none; }
+
+.plot-canvas-wrap {
+  position: relative;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  background: #ffffff;
+}
+.plot-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 読み上げ値。左上に浮かせ、離れた席からも読めるよう数字を大きくする */
+.plot-readout {
+  position: absolute;
+  z-index: 2;
+  left: var(--spacing-m);
+  top: var(--spacing-m);
+  max-width: calc(100% - 24px);
+  padding: var(--spacing-s) var(--spacing-m);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-large);
+  background: rgba(255, 255, 255, .92);
+  box-shadow: var(--shadow-8);
+  color: var(--color-neutral-foreground-1);
+  pointer-events: none;
+}
+.plot-readout-main {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-s);
+}
+.plot-readout-label {
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-foreground-3);
+}
+.plot-readout-main strong {
+  font-family: var(--font-family-monospace);
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+.plot-readout-axes {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs) var(--spacing-m);
+}
+.plot-readout-axes div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-xs);
+}
+.plot-readout-axes dt {
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-foreground-3);
+}
+.plot-readout-axes dd {
+  margin: 0;
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-400);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.plot-readout-quality {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-s);
+  color: var(--color-neutral-foreground-2);
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+}
+.plot-readout-quality .fix-indicator { display: block; }
+.plot-readout-quality span + span + span::before {
+  content: '·';
+  margin-right: var(--spacing-s);
+  color: var(--color-neutral-foreground-4);
+}
+
+/* 再生中の印。実機の動きと取り違えさせないよう、読み上げ値の一番上に置く */
+.plot-replay-badge {
+  align-self: flex-start;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-s-nudge);
+  padding: var(--spacing-xxs) var(--spacing-m);
+  border: 1px solid var(--color-palette-orange-border);
+  border-radius: var(--border-radius-circular);
+  background: var(--color-palette-orange-background);
+  color: var(--color-palette-orange-foreground);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plot-replay-badge .track-record-dot { background: var(--color-palette-orange-primary); }
+
+/* 全画面では投影を前提に一段大きくする */
+.map-panel.is-expanded .plot-readout {
+  left: var(--spacing-l);
+  top: var(--spacing-l);
+  padding: var(--spacing-m) var(--spacing-l);
+  gap: var(--spacing-s);
+}
+.map-panel.is-expanded .plot-readout-main strong { font-size: 64px; }
+.map-panel.is-expanded .plot-readout-label { font-size: var(--font-size-400); }
+.map-panel.is-expanded .plot-readout-axes dt { font-size: var(--font-size-400); }
+.map-panel.is-expanded .plot-readout-axes dd { font-size: var(--font-size-700); }
+.map-panel.is-expanded .plot-readout-quality { font-size: var(--font-size-400); }
+
+/* 右上の操作。track-controls の見た目を借り、位置だけを上書きする */
+.plot-toolbar {
+  position: absolute;
+  z-index: 2;
+  right: var(--spacing-m);
+  top: var(--spacing-m);
+  flex: none;
+  justify-content: flex-end;
+}
+
+/* 下端の再生バー */
+.plot-replay-bar {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: var(--spacing-m);
+  max-width: calc(100% - 24px);
+  padding: var(--spacing-s) var(--spacing-m);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--spacing-s);
+  transform: translateX(-50%);
+  border: 1px solid var(--color-neutral-stroke-1);
+  border-radius: var(--border-radius-large);
+  background: rgba(255, 255, 255, .95);
+  box-shadow: var(--shadow-8);
+  font-size: var(--font-size-200);
+}
+.plot-replay-hint { color: var(--color-neutral-foreground-3); }
+.plot-replay-error {
+  flex-basis: 100%;
+  text-align: center;
+  color: var(--color-status-danger-foreground);
+  font-weight: var(--font-weight-semibold);
+}
+.plot-replay-file {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--font-weight-semibold);
+}
+.plot-replay-progress {
+  color: var(--color-neutral-foreground-2);
+  font-family: var(--font-family-monospace);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.plot-replay-meter {
+  width: 140px;
+  height: 6px;
+  accent-color: var(--color-brand-accent);
+}
+
+@media (max-width: 620px) {
+  .plot-readout-main strong { font-size: 22px; }
+  .plot-replay-hint { display: none; }
+}

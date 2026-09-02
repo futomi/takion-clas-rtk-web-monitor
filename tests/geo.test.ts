@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { EMPTY_FEATURE_COLLECTION, calculateDistanceKm, createAccuracyCircle } from '../app/lib/geo.ts';
+import { EMPTY_FEATURE_COLLECTION, calculateDistanceKm, createAccuracyCircle, toLocalOffsetMeters } from '../app/lib/geo.ts';
 
 describe('calculateDistanceKm', () => {
   it('同一地点なら 0 になる', () => {
@@ -56,5 +56,29 @@ describe('createAccuracyCircle', () => {
 
   it('誤差円を消すための空コレクションは features を持たない', () => {
     assert.equal(EMPTY_FEATURE_COLLECTION.features.length, 0);
+  });
+});
+
+describe('toLocalOffsetMeters', () => {
+  it('同じ地点なら 0', () => {
+    assert.deepEqual(toLocalOffsetMeters(35, 139, 35, 139), { east: 0, north: 0 });
+  });
+
+  it('緯度 1 秒は北緯 35 度でおよそ 30.82 m の北', () => {
+    const { east, north } = toLocalOffsetMeters(35, 139, 35 + 1 / 3600, 139);
+    assert.ok(Math.abs(north - 30.82) < 0.02, `north=${north}`);
+    assert.ok(Math.abs(east) < 1e-9);
+  });
+
+  it('経度 1 秒は北緯 35 度でおよそ 25.36 m の東', () => {
+    const { east, north } = toLocalOffsetMeters(35, 139, 35, 139 + 1 / 3600);
+    assert.ok(Math.abs(east - 25.36) < 0.02, `east=${east}`);
+    assert.ok(Math.abs(north) < 1e-9);
+  });
+
+  it('南と西は負になる', () => {
+    const { east, north } = toLocalOffsetMeters(35, 139, 34.9999, 138.9999);
+    assert.ok(east < 0);
+    assert.ok(north < 0);
   });
 });

@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { clearPositionFields, hasPosition, type Telemetry } from '../app/lib/telemetry.ts';
+import {
+  clearPositionFields,
+  dropNmeaPositionCoveredByUbx,
+  hasPosition,
+  positionEpoch,
+  type Telemetry,
+} from '../app/lib/telemetry.ts';
 
 describe('hasPosition', () => {
   it('緯度と経度が両方そろって初めて測位済みとみなす', () => {
@@ -38,5 +44,58 @@ describe('clearPositionFields', () => {
     assert.equal(update.pdop, 2.0);
     assert.equal(update.speedKmh, 10);
     assert.equal(update.course, 90);
+  });
+});
+
+describe('positionEpoch', () => {
+  it('小数秒を落として秒までに揃える', () => {
+    assert.equal(positionEpoch('12:34:56.00'), '12:34:56');
+    assert.equal(positionEpoch('12:34:56'), '12:34:56');
+  });
+
+  it('時刻が無い、または短すぎれば undefined', () => {
+    assert.equal(positionEpoch(undefined), undefined);
+    assert.equal(positionEpoch('12:34'), undefined);
+  });
+});
+
+describe('dropNmeaPositionCoveredByUbx', () => {
+  const ggaUpdate: Partial<Telemetry> = {
+    timeUtc: '12:34:56.00',
+    quality: 4,
+    satellitesUsed: 20,
+    latitude: 35.68124,
+    longitude: 139.76713,
+    altitude: 40.1,
+    geoidSeparation: 36.5,
+    hdop: 0.7,
+  };
+
+  it('UBX が同じエポックを持っていれば座標だけを外す', () => {
+    const result = dropNmeaPositionCoveredByUbx(ggaUpdate, '12:34:56');
+    assert.equal('latitude' in result, false);
+    assert.equal('longitude' in result, false);
+    assert.equal('altitude' in result, false);
+    assert.equal('geoidSeparation' in result, false);
+    assert.equal(result.quality, 4);
+    assert.equal(result.satellitesUsed, 20);
+    assert.equal(result.hdop, 0.7);
+    assert.equal(result.timeUtc, '12:34:56.00');
+  });
+
+  it('別のエポックなら触らない', () => {
+    assert.equal(dropNmeaPositionCoveredByUbx(ggaUpdate, '12:34:55'), ggaUpdate);
+  });
+
+  it('UBX 側のエポックが無ければ触らない', () => {
+    assert.equal(dropNmeaPositionCoveredByUbx(ggaUpdate, undefined), ggaUpdate);
+  });
+
+  it('未測位による undefined での上書きは通す', () => {
+    const cleared: Partial<Telemetry> = { timeUtc: '12:34:56.00', quality: 0 };
+    clearPositionFields(cleared);
+    const result = dropNmeaPositionCoveredByUbx(cleared, '12:34:56');
+    assert.equal(result, cleared);
+    assert.ok('latitude' in result);
   });
 });
