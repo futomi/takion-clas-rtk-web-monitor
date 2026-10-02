@@ -39,7 +39,7 @@ type MapSectionProps = {
  * 軌跡を描くかどうかはここで決める。操作するのは見出しの中の記録操作、
  * 反映されるのは地図本体で、その両方を持つのがこの層だけのため。
  *
- * 全画面表示もここが持つ。広がるのはこのセクションそのもので、
+ * 最大化・全画面表示もここが持つ。広がるのはこのセクションそのもので、
  * 中の見出しと地図の見せ方も一緒に変わるため。
  *
  * 地図と拡大プロットの切り替えもここ。どちらも同じ測位解を材料にし、
@@ -47,7 +47,7 @@ type MapSectionProps = {
  */
 export default function MapSection({ telemetry, activeSource, quality, connection, track, clock }: MapSectionProps) {
   const positioned = hasPosition(telemetry);
-  const { isExpanded, panelRef, toggle } = useMapExpansion();
+  const { expansion, isExpanded, panelRef, toggle } = useMapExpansion();
   const [view, setView] = useState<MapView>('map');
 
   /*
@@ -110,7 +110,7 @@ export default function MapSection({ telemetry, activeSource, quality, connectio
           </div>
 
           {/*
-            * 全画面では移動情報パネルも接続の状態も画面から消える。
+            * 広げている間は移動情報パネルも接続の状態も画面から消える。
             * 動きながら見失うと困るものだけを、ここへ引き継ぐ。
             * 再生中は受信機の速度・方位を出しても画面の動きと関係が無いので出さない。
             */}
@@ -126,16 +126,35 @@ export default function MapSection({ telemetry, activeSource, quality, connectio
         </div>
 
         {/*
-          * 切り替えと全画面は記録操作より前に置く。記録操作は右詰めなので、後ろに置くと
+          * 切り替えと最大化・全画面は記録操作より前に置く。記録操作は右詰めなので、後ろに置くと
           * 主ボタン（記録開始 / 停止）がパネルの右端から押し出されてしまう。
           */}
         <div className="map-view-switch" role="group" aria-label="表示の切り替え">
           <button type="button" aria-pressed={view === 'map'} onClick={() => setView('map')}>地図</button>
           <button type="button" aria-pressed={view === 'plot'} onClick={() => setView('plot')}>拡大プロット</button>
         </div>
-        <button type="button" className="map-expand-button" onClick={toggle}>
-          {isExpanded ? '全画面を解除' : '全画面'}
-        </button>
+        {/*
+          * 広げている間も両方を残し、最大化と全画面を行き来できるようにする。
+          * 2 つの違いは名前だけでは伝わりにくいので、title で補う。
+          */}
+        <div className="map-expand-actions">
+          <button
+            type="button"
+            className="map-expand-button"
+            title="ブラウザの表示領域いっぱいに地図を広げます"
+            onClick={() => toggle('window')}
+          >
+            {expansion === 'window' ? '最大化を解除' : '最大化'}
+          </button>
+          <button
+            type="button"
+            className="map-expand-button"
+            title="画面全体に地図を広げます"
+            onClick={() => toggle('fullscreen')}
+          >
+            {expansion === 'fullscreen' ? '全画面を解除' : '全画面'}
+          </button>
+        </div>
 
         <TrackControls
           track={track}

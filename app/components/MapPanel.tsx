@@ -285,7 +285,7 @@ export default function MapPanel({
   }, [course, following, horizontalError, latitude, longitude, mapLoaded, qualityTone]);
 
   /*
-   * 全画面のときは Ctrl + ホイール（二本指）の強制を外す。
+   * 最大化・全画面のときは Ctrl + ホイール（二本指）の強制を外す。
    *
    * この制限はページのスクロールを地図に横取りさせないためのもので、
    * 地図が画面そのものになれば守るべきスクロールが無くなる。

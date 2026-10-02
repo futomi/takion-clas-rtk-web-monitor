@@ -150,7 +150,7 @@
 }
 .plot-replay-badge .track-record-dot { background: var(--color-palette-orange-primary); }
 
-/* 全画面では投影を前提に一段大きくする */
+/* 最大化・全画面では投影を前提に一段大きくする */
 .map-panel.is-expanded .plot-readout {
   left: var(--spacing-l);
   top: var(--spacing-l);

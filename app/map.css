@@ -224,7 +224,8 @@
 }
 
 /*
- * 全画面表示。
+ * 最大化・全画面表示。どちらもここでブラウザの表示領域いっぱいに広げ、
+ * 全画面のときはその上にネイティブ全画面が重なる。
  *
  * 見出しを地図の上へ浮かせず、細い帯のまま上に残す。
  * 地図はすでに四辺へ自前の要素（追従ボタン・エラー・スケール・ナビゲーション）を
@@ -235,7 +236,7 @@
 .map-panel.is-expanded {
   position: fixed;
   inset: 0;
-  /* モーダル（1000）より下に置き、全画面のまま前へ出させない */
+  /* モーダル（1000）より下に置き、広げたまま前へ出させない */
   z-index: 900;
   flex: none;
   height: auto;
@@ -246,7 +247,7 @@
 }
 .map-panel.is-expanded .map-canvas-wrap { min-height: 0; }
 
-/* 帯は全画面の間だけ切り詰める。削ったぶんはそのまま地図の高さになる */
+/* 帯は広げている間だけ切り詰める。削ったぶんはそのまま地図の高さになる */
 .map-panel.is-expanded .map-panel-heading {
   min-height: 48px;
   padding-block: var(--spacing-s);
@@ -255,7 +256,7 @@
 .map-panel.is-expanded .map-panel-heading h3 { display: none; }
 
 /*
- * 全画面の間だけ帯に出す速度と進行方向。
+ * 広げている間だけ帯に出す速度と進行方向。
  * 移動情報パネルが画面から消えるので、動きながら要る 2 つだけを引き継ぐ。
  */
 .map-hud-motion {
@@ -273,7 +274,7 @@
   color: var(--color-neutral-foreground-4);
 }
 
-/* 受信機が繋がっていないことの知らせ。全画面では接続バーが見えなくなるため */
+/* 受信機が繋がっていないことの知らせ。広げている間は接続バーが見えなくなるため */
 .map-hud-alert {
   padding: var(--spacing-xxs) var(--spacing-m);
   border: 1px solid var(--color-status-danger-border);
@@ -286,9 +287,15 @@
 }
 
 /*
- * 全画面の切り替え。
+ * 最大化・全画面の切り替え。
  * 高さはログパネル・軌跡操作のツールバーと同じ 32px（Fluent 2 の medium）に揃える。
+ * 2 つは対になる操作なので、見出し行の間隔より詰めて並べる。
  */
+.map-expand-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: var(--spacing-s);
+}
 .map-expand-button {
   flex: 0 0 auto;
   box-sizing: border-box;
@@ -315,11 +322,11 @@
   background-color: var(--color-neutral-background-5);
 }
 
-/* 全画面の間は背後のページを動かさない */
+/* 広げている間は背後のページを動かさない */
 body.map-expanded { overflow: hidden; }
 
 /*
- * 全画面の裏に隠れたパネルは、見えないだけでは焦点も読み上げも素通りする。
+ * 広げた地図の裏に隠れたパネルは、見えないだけでは焦点も読み上げも素通りする。
  * visibility なら測定に影響を出さずに両方から外せるため、display は変えない
  * （ログ端末の追従は高さを測って動くので、消すと戻ったときに位置を失う）。
  */
