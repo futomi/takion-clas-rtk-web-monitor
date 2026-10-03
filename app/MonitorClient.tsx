@@ -180,6 +180,8 @@ export default function MonitorClient() {
         portInfo={receiver.portInfo}
         baudRate={baudRate}
         onBaudRateChange={setBaudRate}
+        measurementRate={receiver.measurementRate}
+        onMeasurementRateChange={receiver.setMeasurementRate}
         onConnect={handleConnect}
         onDisconnect={handleDisconnect}
       />

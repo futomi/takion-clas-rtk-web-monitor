@@ -56,7 +56,14 @@
   font-size: var(--font-size-400);
   font-weight: var(--font-weight-semibold);
 }
-.baud-control {
+/* 接続の設定。ボーレートと測位レートを 1 つの列へまとめ、狭い画面では縦に積む */
+.device-settings {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-l);
+}
+
+.device-select {
   display: flex;
   align-items: center;
   gap: var(--spacing-s);
@@ -64,6 +71,7 @@
   font-size: var(--font-size-300);
   line-height: var(--line-height-300);
 }
+.device-select span { white-space: nowrap; }
 
 /*
  * Fluent 2 の Input / Dropdown。
@@ -72,7 +80,7 @@
  * 罫線全体の色を変える方式と違い、入力欄の並びの中でどこに居るかが一目で分かる。
  * 太らせたぶんの 1px は padding-bottom から引いて、中身が上下に動かないようにする。
  */
-.baud-control select {
+.device-select select {
   width: 152px;
   height: 40px;
   padding: 0 var(--spacing-m);
@@ -86,19 +94,21 @@
   font-weight: var(--font-weight-semibold);
   transition: border-color var(--duration-faster) var(--curve-easy-ease);
 }
-.baud-control select:hover:not(:disabled) {
+.device-select select:hover:not(:disabled) {
   border-color: var(--color-neutral-stroke-accessible);
 }
-.baud-control select:focus-visible {
+.device-select select:focus-visible {
   border-bottom: 2px solid var(--color-brand-stroke-1);
   padding-bottom: 1px;
   box-shadow: none;
 }
-.baud-control select:disabled {
+.device-select select:disabled {
   border-color: var(--color-neutral-stroke-disabled);
   background: var(--color-neutral-background-disabled);
   color: var(--color-neutral-foreground-disabled);
 }
+/* 測位レートの候補（「10 Hz」まで）はボーレートより短いので、そのぶん詰めて横幅を空ける */
+.measurement-rate select { width: 104px; }
 
 /* Fluent 2 の Primary Button（large） */
 .connect-button {

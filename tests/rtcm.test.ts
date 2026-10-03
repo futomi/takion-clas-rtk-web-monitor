@@ -6,7 +6,7 @@ import {
   parseUbx,
   readAckTarget,
   readUbxPayloadLength,
-  readValgetByte,
+  readValgetValues,
 } from '../app/lib/ubx.ts';
 import { buildRtcmFrame, buildUbxFrame } from './helpers.ts';
 
@@ -41,12 +41,13 @@ describe('UBX 設定応答の読み取り', () => {
     view.setUint32(4, CFG_KEY_MSGOUT_NAV_PVT_USB, true);
     view.setUint8(8, 0);
     const frame = buildUbxFrame(0x06, 0x8b, new Uint8Array(view.buffer));
-    assert.equal(readValgetByte(frame, CFG_KEY_MSGOUT_NAV_PVT_USB), 0);
-    assert.equal(readValgetByte(frame, 0x12345678), null);
+    const values = readValgetValues(frame);
+    assert.equal(values?.get(CFG_KEY_MSGOUT_NAV_PVT_USB), 0);
+    assert.equal(values?.has(0x12345678), false);
   });
 
   it('CFG-VALGET 以外には反応しない', () => {
-    assert.equal(readValgetByte(buildUbxFrame(0x01, 0x07, new Uint8Array(92)), CFG_KEY_MSGOUT_NAV_PVT_USB), null);
+    assert.equal(readValgetValues(buildUbxFrame(0x01, 0x07, new Uint8Array(92))), null);
   });
 
   it('ACK-ACK / ACK-NAK の対象コマンドを判別する', () => {

@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
-  DISABLE_NAV_PVT_USB_RAM,
-  ENABLE_NAV_PVT_USB_RAM,
-  GET_NAV_PVT_USB_RATE,
+  CFG_KEY_MSGOUT_NAV_PVT_USB,
+  CFG_KEY_RATE_MEAS,
+  buildValgetRequest,
+  buildValsetRequest,
   parseUbx,
+  readValgetValues,
   ubxChecksumIsValid,
   ubxMessageType,
 } from '../app/lib/ubx.ts';
@@ -17,16 +19,89 @@ function navPvtPayload(fill: (view: DataView) => void): Uint8Array {
   return new Uint8Array(view.buffer);
 }
 
+/** 日時が有効な NAV-PVT を、UTC の日時と秒の端数（ns）から組み立てる */
+function navPvtAt(date: [number, number, number], time: [number, number, number], nano: number): Uint8Array {
+  return buildUbxFrame(0x01, 0x07, navPvtPayload((view) => {
+    view.setUint16(4, date[0], true);
+    view.setUint8(6, date[1]);
+    view.setUint8(7, date[2]);
+    view.setUint8(8, time[0]);
+    view.setUint8(9, time[1]);
+    view.setUint8(10, time[2]);
+    view.setUint8(11, 0x03);
+    view.setInt32(16, nano, true);
+  }));
+}
+
 describe('UBX チェックサム', () => {
-  it('アプリが送信する定数フレームは自己整合している', () => {
-    assert.equal(ubxChecksumIsValid(GET_NAV_PVT_USB_RATE), true);
-    assert.equal(ubxChecksumIsValid(ENABLE_NAV_PVT_USB_RAM), true);
-    assert.equal(ubxChecksumIsValid(DISABLE_NAV_PVT_USB_RAM), true);
+  it('アプリが組み立てて送るフレームは自己整合している', () => {
+    assert.equal(ubxChecksumIsValid(buildValgetRequest([CFG_KEY_MSGOUT_NAV_PVT_USB, CFG_KEY_RATE_MEAS])), true);
+    assert.equal(ubxChecksumIsValid(buildValsetRequest([{ key: CFG_KEY_RATE_MEAS, value: 200 }])), true);
   });
   it('1 バイト壊すと検出できる', () => {
-    const broken = Uint8Array.from(GET_NAV_PVT_USB_RATE);
+    const broken = buildValgetRequest([CFG_KEY_MSGOUT_NAV_PVT_USB]);
     broken[7] ^= 0xff;
     assert.equal(ubxChecksumIsValid(broken), false);
+  });
+});
+
+describe('UBX 設定フレームの組み立て', () => {
+  // 受信機で動作を確かめてあるフレーム。組み立て方を変えてもこのバイト列から外れないこと
+  it('NAV-PVT 出力レートの照会は、実機で確かめたフレームと一致する', () => {
+    assert.deepEqual(buildValgetRequest([CFG_KEY_MSGOUT_NAV_PVT_USB]), new Uint8Array([
+      0xb5, 0x62, 0x06, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x91, 0x20, 0x53, 0xf7,
+    ]));
+  });
+
+  it('NAV-PVT 出力の有効化・無効化は、実機で確かめたフレームと一致する', () => {
+    assert.deepEqual(buildValsetRequest([{ key: CFG_KEY_MSGOUT_NAV_PVT_USB, value: 1 }]), new Uint8Array([
+      0xb5, 0x62, 0x06, 0x8a, 0x09, 0x00, 0x00, 0x01, 0x00, 0x00, 0x09, 0x00, 0x91, 0x20, 0x01, 0x55, 0x52,
+    ]));
+    assert.deepEqual(buildValsetRequest([{ key: CFG_KEY_MSGOUT_NAV_PVT_USB, value: 0 }]), new Uint8Array([
+      0xb5, 0x62, 0x06, 0x8a, 0x09, 0x00, 0x00, 0x01, 0x00, 0x00, 0x09, 0x00, 0x91, 0x20, 0x00, 0x54, 0x51,
+    ]));
+  });
+
+  it('測位間隔はキーの大きさ（2 バイト）に従ってリトルエンディアンで書く', () => {
+    const frame = buildValsetRequest([{ key: CFG_KEY_RATE_MEAS, value: 200 }]);
+    // ヘッダ 6 + version・層・予約 4 + キー 4 + 値 2 + チェックサム 2
+    assert.equal(frame.length, 18);
+    assert.deepEqual(Array.from(frame.subarray(6, 16)), [
+      0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x21, 0x30, 0xc8, 0x00,
+    ]);
+  });
+
+  it('複数の項目を 1 フレームへ並べる', () => {
+    const frame = buildValsetRequest([
+      { key: CFG_KEY_MSGOUT_NAV_PVT_USB, value: 0 },
+      { key: CFG_KEY_RATE_MEAS, value: 1000 },
+    ]);
+    assert.equal(frame[4], 4 + (4 + 1) + (4 + 2));
+    assert.deepEqual(Array.from(frame.subarray(10, 21)), [
+      0x09, 0x00, 0x91, 0x20, 0x00,
+      0x01, 0x00, 0x21, 0x30, 0xe8, 0x03,
+    ]);
+  });
+
+  it('値の大きさが分からないキーは組み立てを拒む', () => {
+    assert.throws(() => buildValsetRequest([{ key: 0x00000001, value: 1 }]));
+  });
+});
+
+describe('readValgetValues', () => {
+  it('大きさの違う値が並んでいても、キーごとに読み分ける', () => {
+    const payload = [
+      0x01, 0x00, 0x00, 0x00,
+      0x09, 0x00, 0x91, 0x20, 0x00, // NAV-PVT 出力レート = 0（1 バイト）
+      0x01, 0x00, 0x21, 0x30, 0xe8, 0x03, // 測位間隔 = 1000 ms（2 バイト）
+    ];
+    const values = readValgetValues(buildUbxFrame(0x06, 0x8b, payload));
+    assert.deepEqual(values, new Map([[CFG_KEY_MSGOUT_NAV_PVT_USB, 0], [CFG_KEY_RATE_MEAS, 1000]]));
+  });
+
+  it('値が途中で切れていれば、そこまでで打ち切る', () => {
+    const payload = [0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x21, 0x30, 0xe8];
+    assert.deepEqual(readValgetValues(buildUbxFrame(0x06, 0x8b, payload)), new Map());
   });
 });
 
@@ -114,7 +189,24 @@ describe('parseUbx / NAV-PVT', () => {
       view.setUint8(11, 0x03);
     })));
     assert.equal(withValid.update.dateUtc, '2024-03-05');
-    assert.equal(withValid.update.timeUtc, '09:07:01');
+    assert.equal(withValid.update.timeUtc, '09:07:01.00');
+  });
+
+  it('時刻は秒の端数を 1/100 秒に丸めて NMEA と同じ桁で持つ', () => {
+    // 5 Hz の 2 つめのエポック。端数には数百 ns のずれが乗る
+    assert.equal(parseUbx(navPvtAt([2024, 3, 5], [9, 7, 1], 200_000_321)).update.timeUtc, '09:07:01.20');
+    assert.equal(parseUbx(navPvtAt([2024, 3, 5], [9, 7, 1], 799_999_512)).update.timeUtc, '09:07:01.80');
+  });
+
+  it('負の端数は前の秒へ繰り下げる', () => {
+    // 56 秒 - 0.8 秒 = 55.2 秒
+    assert.equal(parseUbx(navPvtAt([2024, 3, 5], [9, 7, 56], -800_000_000)).update.timeUtc, '09:07:55.20');
+  });
+
+  it('丸めで繰り上がった秒は、分・時・日付まで送る', () => {
+    const parsed = parseUbx(navPvtAt([2024, 12, 31], [23, 59, 59], 999_999_000));
+    assert.equal(parsed.update.dateUtc, '2025-01-01');
+    assert.equal(parsed.update.timeUtc, '00:00:00.00');
   });
 
   it('チェックサム不正なら解析を打ち切る', () => {

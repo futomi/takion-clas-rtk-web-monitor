@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { concatBytes } from '../lib/bytes';
-import { DEFAULT_MAX_LOGS, UBLOX_VENDOR_ID } from '../lib/constants';
+import { DEFAULT_MAX_LOGS, DEFAULT_MEASUREMENT_RATE_HZ, UBLOX_VENDOR_ID } from '../lib/constants';
 import { scanFrames, trimStaleBuffer, type ScannedFrame } from '../lib/frameScanner';
 import { createLogEntry, createLogIdGenerator, createRtcmLogEntry, createUbxLogEntry } from '../lib/logEntry';
 import { parseNmea } from '../lib/nmea';
-import { PvtOutputNegotiator } from '../lib/pvtOutputNegotiator';
+import { ReceiverConfigNegotiator } from '../lib/receiverConfigNegotiator';
 import { parseRtcm } from '../lib/rtcm';
 import { SatelliteTracker } from '../lib/satelliteTracker';
 import { parseUbx } from '../lib/ubx';
@@ -17,18 +17,21 @@ import { getSerialApi, type SerialPortInfo, type SerialPortLike } from '../lib/w
 /** 受信カウンタを state へ写す間隔（ms） */
 const COUNTER_SAMPLE_INTERVAL_MS = 1000;
 /**
- * 測位状態と受信ログを state へ写す間隔（ms）。
+ * 受信してから測位状態と受信ログを state へ写すまでの待ち（ms）。
  *
  * チャンクは秒あたり数十回届くが、それを全部 state へ流すと画面全体の描き直しが
- * 同じ回数だけ走る。人が読めるのは画面の更新間隔までの粒度なので、
- * 受信ループでは ref へ積むだけにして、ここでまとめて写す。
+ * 同じ回数だけ走る。受信ループでは ref へ積むだけにして、最初のチャンクが届いてから
+ * この時間だけ待ち、その間に届いたぶんとまとめて写す。1 エポックぶんの電文
+ * （NAV-PVT・GGA・RMC…）は数チャンクに分かれて立て続けに届くので、ほぼ 1 回の描き直しで済む。
  *
- * カウンタ側の 1 秒より短くしているのは、こちらは地図のマーカーや速度・方位など
- * 連続的に動くものを含むため。8 回/秒あれば動きは滑らかに見える。
+ * 一定間隔のタイマーで写さないのは、受信機の測位間隔と写す間隔がずれて、
+ * 画面の動く間隔が揃わなくなるため（5 Hz を 125 ms ごとに写すと 125 ms と 250 ms が
+ * 交互に並び、動きがつかえて見える）。届いたことを起点にすれば、画面は受信機の測位間隔で動く。
+ *
  * `requestAnimationFrame` ではなくタイマーにしているのは、タブが背面に回っても
  * 止まらないようにするため（軌跡の記録はこの更新を起点に動く）。
  */
-const TELEMETRY_SAMPLE_INTERVAL_MS = 125;
+const TELEMETRY_FLUSH_DELAY_MS = 40;
 /** 切断時に受信機の設定を戻すのを待つ上限（ms） */
 const RESTORE_TIMEOUT_MS = 1500;
 
@@ -55,7 +58,8 @@ async function withTimeout(task: Promise<void>, timeoutMs: number): Promise<void
  * TakionCM001（u-blox 系受信機）との Web Serial 接続を一手に引き受けるフック。
  *
  * ポートの開閉、受信バイト列のフレーム分解、テレメトリと受信ログの更新を担当する。
- * NAV-PVT 出力の一時的な有効化は {@link PvtOutputNegotiator} に委ねる。
+ * NAV-PVT 出力の有効化や測位レートの変更など、受信機の設定を一時的に書き換えるのは
+ * {@link ReceiverConfigNegotiator} に委ねる。
  * UI 側はここが返す状態を描画するだけでよい。
  */
 export function useGnssReceiver() {
@@ -80,21 +84,26 @@ export function useGnssReceiver() {
   const [l6Summary, setL6Summary] = useState('');
 
   /**
-   * 受信ループが積み、{@link TELEMETRY_SAMPLE_INTERVAL_MS} ごとに state へ写される控え。
+   * 受信ループが積み、受信から {@link TELEMETRY_FLUSH_DELAY_MS} 後に state へ写される控え。
    *
    * 上の受信カウンタと同じ考え方で、測位状態・受信ログ・L6 の受信状況も
-   * チャンクごとではなく一定間隔でまとめて反映する。
+   * チャンクごとではなくまとめて反映する。
    */
   const telemetryRef = useRef<Telemetry>({});
   const telemetryDirtyRef = useRef(false);
   const pendingLogsRef = useRef<LogLine[]>([]);
   const pendingL6Ref = useRef<{ at: number | null; summary: string | null }>({ at: null, summary: null });
+  /** 写す予約のタイマー。予約が無ければ undefined */
+  const flushTimerRef = useRef<number | undefined>(undefined);
 
   // ログ収集の設定。受信ループから同期的に読むため ref にも同じ値を持つ
   const [maxLogs, setMaxLogsState] = useState<number>(DEFAULT_MAX_LOGS);
   const [paused, setPausedState] = useState(false);
   const maxLogsRef = useRef<number>(DEFAULT_MAX_LOGS);
   const pausedRef = useRef(false);
+
+  /** 受信機に 1 秒あたり何回測位解を出させるか（Hz）。接続前に選んでも、接続中に選び直してもよい */
+  const [measurementRate, setMeasurementRateState] = useState<number>(DEFAULT_MEASUREMENT_RATE_HZ);
 
   const portRef = useRef<SerialPortLike | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
@@ -109,18 +118,24 @@ export function useGnssReceiver() {
    * 同じエポックの GGA / RMC が後から来ても、粗い座標で上書きさせないための控え
    * （{@link dropNmeaPositionCoveredByUbx}）。
    */
-  const ubxPositionEpochRef = useRef<string | undefined>(undefined);
+  const ubxPositionEpochRef = useRef<number | undefined>(undefined);
 
-  const negotiatorRef = useRef<PvtOutputNegotiator | null>(null);
-  negotiatorRef.current ??= new PvtOutputNegotiator({
+  const negotiatorRef = useRef<ReceiverConfigNegotiator | null>(null);
+  negotiatorRef.current ??= new ReceiverConfigNegotiator({
     canWrite: () => writerRef.current !== null,
     write: async (frame) => {
       const writer = writerRef.current;
       if (writer) await writer.write(frame);
     },
     onError: setError,
-  });
+  }, 1000 / DEFAULT_MEASUREMENT_RATE_HZ);
   const negotiator = negotiatorRef.current;
+
+  /** 測位レートを選び直す。接続中ならその場で受信機へ書き、未接続なら次の接続で書く */
+  const setMeasurementRate = useCallback((rateHz: number) => {
+    setMeasurementRateState(rateHz);
+    negotiator.setMeasurementPeriod(1000 / rateHz);
+  }, [negotiator]);
 
   /** ログ収集を止めるかどうか。UI 側の一時停止ボタンから制御する */
   const setPaused = useCallback((next: boolean) => {
@@ -167,6 +182,20 @@ export function useGnssReceiver() {
       setL6Summary(l6.summary);
       l6.summary = null;
     }
+  }, []);
+
+  /** 写す予約を入れる。予約済みなら何もしない（続けて届くチャンクを 1 回の描き直しにまとめる） */
+  const scheduleFlush = useCallback(() => {
+    if (flushTimerRef.current !== undefined) return;
+    flushTimerRef.current = window.setTimeout(() => {
+      flushTimerRef.current = undefined;
+      flushReceived();
+    }, TELEMETRY_FLUSH_DELAY_MS);
+  }, [flushReceived]);
+
+  const cancelScheduledFlush = useCallback(() => {
+    window.clearTimeout(flushTimerRef.current);
+    flushTimerRef.current = undefined;
   }, []);
 
   /**
@@ -253,7 +282,8 @@ export function useGnssReceiver() {
         pendingLogsRef.current = pending.slice(-maxLogsRef.current);
       }
     }
-  }, [negotiator]);
+    scheduleFlush();
+  }, [negotiator, scheduleFlush]);
 
   /** ポートから読み続け、完成したフレームを順次処理する */
   const readFromPort = useCallback(async (port: SerialPortLike) => {
@@ -426,25 +456,24 @@ export function useGnssReceiver() {
     };
   }, [connection]);
 
-  // 接続中は測位状態と受信ログも一定間隔でまとめて写す。
-  // カウンタと別の間隔で回すため、タイマーも別に持つ
+  // 測位状態と受信ログは受信のたびに予約して写す（scheduleFlush）。
+  // 接続が切れるときは予約を待たず、溜まっていたぶんをその場で写して取りこぼさない
   useEffect(() => {
     if (connection !== 'connected') return;
-    const timer = window.setInterval(flushReceived, TELEMETRY_SAMPLE_INTERVAL_MS);
     return () => {
-      window.clearInterval(timer);
-      // 切断の瞬間に溜まっていたぶんを取りこぼさない
+      cancelScheduledFlush();
       flushReceived();
     };
-  }, [connection, flushReceived]);
+  }, [cancelScheduledFlush, connection, flushReceived]);
 
   // アンマウント時は読み取りを止め、開いたままのポートを解放する
   useEffect(() => () => {
     keepReadingRef.current = false;
+    cancelScheduledFlush();
     void readerRef.current?.cancel();
     void portRef.current?.close().catch(() => undefined);
     portRef.current = null;
-  }, []);
+  }, [cancelScheduledFlush]);
 
   return {
     connection,
@@ -458,11 +487,13 @@ export function useGnssReceiver() {
     l6Summary,
     maxLogs,
     paused,
+    measurementRate,
     connect,
     disconnect,
     setError,
     setPaused,
     setMaxLogs,
+    setMeasurementRate,
     clearLogs,
     writeToPort,
     isWriterReady,

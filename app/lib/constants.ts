@@ -59,6 +59,16 @@ export const MAP_ERROR_DURATION_MS = 4000;
 export const UBLOX_VENDOR_ID = 0x1546;
 export const BAUD_RATE_OPTIONS = [9600, 19200, 38400, 57600, 115200, 230400, 460800] as const;
 export const DEFAULT_BAUD_RATE = 38400;
+/**
+ * 受信機が 1 秒に何回測位解を出すか（Hz）。UI から選択できる候補。
+ *
+ * 受信機の既定は 1 Hz で、そのままだと地図も拡大プロットも 1 秒ごとにしか動かない。
+ * 接続している間だけ受信機の RAM 層へ書き、切断時に元の値へ戻す。
+ * 計算が追いつく上限はチップ・ファームウェア・使う衛星系で変わり、
+ * 上げすぎると Fix しにくくなることがあるため、選べる値は 10 Hz までに留める。
+ */
+export const MEASUREMENT_RATE_OPTIONS = [1, 2, 5, 10] as const;
+export const DEFAULT_MEASUREMENT_RATE_HZ = 5;
 
 // ---- 軌跡記録 ----
 /** 軌跡へ 1 点を積む最短間隔（ms）。UI から選択できる候補 */

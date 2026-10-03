@@ -48,14 +48,21 @@ describe('clearPositionFields', () => {
 });
 
 describe('positionEpoch', () => {
-  it('小数秒を落として秒までに揃える', () => {
-    assert.equal(positionEpoch('12:34:56.00'), '12:34:56');
-    assert.equal(positionEpoch('12:34:56'), '12:34:56');
+  it('小数秒の有無や桁数が違っても、同じ時刻なら同じ値になる', () => {
+    assert.equal(positionEpoch('12:34:56.00'), positionEpoch('12:34:56'));
+    assert.equal(positionEpoch('12:34:56.2'), positionEpoch('12:34:56.20'));
+    assert.equal(positionEpoch('12:34:56.200'), positionEpoch('12:34:56.20'));
   });
 
-  it('時刻が無い、または短すぎれば undefined', () => {
+  it('1 秒の中のエポックを 1/100 秒の桁で見分ける', () => {
+    assert.notEqual(positionEpoch('12:34:56.20'), positionEpoch('12:34:56.00'));
+    assert.notEqual(positionEpoch('12:34:56.10'), positionEpoch('12:34:56.20'));
+  });
+
+  it('時刻が無い、または形が崩れていれば undefined', () => {
     assert.equal(positionEpoch(undefined), undefined);
     assert.equal(positionEpoch('12:34'), undefined);
+    assert.equal(positionEpoch('12:34:5x'), undefined);
   });
 });
 
@@ -72,7 +79,7 @@ describe('dropNmeaPositionCoveredByUbx', () => {
   };
 
   it('UBX が同じエポックを持っていれば座標だけを外す', () => {
-    const result = dropNmeaPositionCoveredByUbx(ggaUpdate, '12:34:56');
+    const result = dropNmeaPositionCoveredByUbx(ggaUpdate, positionEpoch('12:34:56.00'));
     assert.equal('latitude' in result, false);
     assert.equal('longitude' in result, false);
     assert.equal('altitude' in result, false);
@@ -84,7 +91,13 @@ describe('dropNmeaPositionCoveredByUbx', () => {
   });
 
   it('別のエポックなら触らない', () => {
-    assert.equal(dropNmeaPositionCoveredByUbx(ggaUpdate, '12:34:55'), ggaUpdate);
+    assert.equal(dropNmeaPositionCoveredByUbx(ggaUpdate, positionEpoch('12:34:55.80')), ggaUpdate);
+  });
+
+  it('同じ秒の中でも、エポックが違えば触らない', () => {
+    // 5 Hz では 1 秒に 5 つのエポックがある。UBX が持っているのは .00 だけ
+    const nextEpoch: Partial<Telemetry> = { ...ggaUpdate, timeUtc: '12:34:56.20' };
+    assert.equal(dropNmeaPositionCoveredByUbx(nextEpoch, positionEpoch('12:34:56.00')), nextEpoch);
   });
 
   it('UBX 側のエポックが無ければ触らない', () => {
@@ -94,7 +107,7 @@ describe('dropNmeaPositionCoveredByUbx', () => {
   it('未測位による undefined での上書きは通す', () => {
     const cleared: Partial<Telemetry> = { timeUtc: '12:34:56.00', quality: 0 };
     clearPositionFields(cleared);
-    const result = dropNmeaPositionCoveredByUbx(cleared, '12:34:56');
+    const result = dropNmeaPositionCoveredByUbx(cleared, positionEpoch('12:34:56.00'));
     assert.equal(result, cleared);
     assert.ok('latitude' in result);
   });

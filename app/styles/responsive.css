@@ -28,11 +28,30 @@
   }
 }
 
+/*
+ * 接続ツールバーから VID / PID を外す境目。
+ *
+ * ボーレートと測位レートを横に並べたまま VID / PID まで 1 行に置くと、実測では 1050px あたりで
+ * 収まらなくなる。少し余裕を持たせてここで外す。
+ * VID / PID は接続先を確かめるための補助の表示なので、操作に使う選択欄より先に外す。
+ * 外したぶん列が 1 つ減るので、列の定義も 3 列に組み直す。
+ */
+@media (max-width: 1080px) {
+  .device-toolbar { grid-template-columns: minmax(220px, 1fr) auto 120px; }
+  .device-id { display: none; }
+}
+
 @media (max-width: 900px) {
   body { overflow: auto; }
   .app-shell { height: auto; min-height: 100dvh; overflow: visible; padding-inline: var(--spacing-l); }
   .device-toolbar { grid-template-columns: minmax(190px, 1fr) auto 120px; }
-  .device-id { display: none; }
+  /*
+   * ボーレートと測位レートを縦に積む。横に並べたままでは 800px あたりで収まらなくなる。
+   * ラベルの幅と選択欄の幅を揃え、2 つの選択欄の左右の端を揃える
+   */
+  .device-settings { flex-direction: column; align-items: stretch; gap: var(--spacing-s); }
+  .device-select span { min-width: 5em; }
+  .device-select select { width: 132px; }
   .ntrip-grid { grid-template-columns: minmax(0, 1fr); }
   .log-panel { min-height: 300px; }
   .terminal { height: 230px; flex: 0 0 auto; }
@@ -46,12 +65,19 @@
   .connection-chip { min-width: 100px; }
   .device-toolbar {
     flex-basis: auto;
-    grid-template-columns: 1fr 104px;
+    grid-template-columns: minmax(0, 1fr) 104px;
     gap: var(--spacing-m);
   }
   .device-heading { grid-column: 1 / -1; }
-  .baud-control { justify-content: space-between; }
-  .baud-control select { width: 132px; }
+  /*
+   * 選択欄は接続ボタン側へ寄せ、右端で揃える。幅が足りなければ縮める（固定幅のままでは
+   * ラベルが折り返す）。ラベルの幅はここでは揃えない。揃えると短い「Baud」の側まで
+   * 「測位レート」の幅を取られ、360px 幅では「38,400 bps」が欠ける。
+   * 縮むのは候補の短い測位レートの側だけで、ボーレートは 360px 幅でも欠けずに収まる
+   */
+  .device-select { justify-content: space-between; }
+  .device-select span { min-width: auto; }
+  .device-select select { flex: 0 1 132px; width: auto; min-width: 0; }
   .connect-button { width: 104px; }
   .dashboard { grid-template-columns: 1fr; }
   .satellites-section { grid-template-columns: 1fr; }

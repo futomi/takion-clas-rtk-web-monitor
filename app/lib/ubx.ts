@@ -59,25 +59,108 @@ export function isKnownUbxClass(messageClass: number): boolean {
 
 /** CFG キー: USB ポートにおける NAV-PVT 出力レート */
 export const CFG_KEY_MSGOUT_NAV_PVT_USB = 0x20910009;
+/** CFG キー: 測位の間隔（ms）。受信機が 1 秒に何回測位解を出すかはこれで決まる */
+export const CFG_KEY_RATE_MEAS = 0x30210001;
 
-/** 受信機の USB ポートにおける NAV-PVT 出力レートを照会する UBX-CFG-VALGET */
-export const GET_NAV_PVT_USB_RATE = new Uint8Array([
-  0xb5, 0x62, 0x06, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x91, 0x20, 0x53, 0xf7,
-]);
-/** NAV-PVT の USB 出力を RAM 層で有効化する UBX-CFG-VALSET（電源断で元に戻る） */
-export const ENABLE_NAV_PVT_USB_RAM = new Uint8Array([
-  0xb5, 0x62, 0x06, 0x8a, 0x09, 0x00, 0x00, 0x01, 0x00, 0x00, 0x09, 0x00, 0x91, 0x20, 0x01, 0x55, 0x52,
-]);
-/** 有効化した NAV-PVT の USB 出力を元に戻す UBX-CFG-VALSET */
-export const DISABLE_NAV_PVT_USB_RAM = new Uint8Array([
-  0xb5, 0x62, 0x06, 0x8a, 0x09, 0x00, 0x00, 0x01, 0x00, 0x00, 0x09, 0x00, 0x91, 0x20, 0x00, 0x54, 0x51,
-]);
+/** CFG-VALGET で読む層。RAM 層は今まさに効いている値を持つ */
+const CFG_VALGET_LAYER_RAM = 0x00;
+/** CFG-VALSET で書く層（ビットマスク）。RAM 層だけに書くので、電源を切れば元へ戻る */
+const CFG_VALSET_LAYERS_RAM = 0x01;
+
+/** CFG-VALSET で書く 1 項目 */
+export type CfgItem = { key: number; value: number };
 
 const toHexByte = (value: number) => value.toString(16).toUpperCase().padStart(2, '0');
 
 /** フレーム先頭 6 バイトからペイロード長（リトルエンディアン 16bit）を読む */
 export function readUbxPayloadLength(frame: Uint8Array, offset = 0): number {
   return frame[offset + 4] | (frame[offset + 5] << 8);
+}
+
+/**
+ * 設定キーが運ぶ値のバイト数。キー ID の 28〜30 ビットが大きさを表す。
+ * 1 ビット型も 1 バイトで運ばれる。大きさを表さない値なら null。
+ */
+function cfgValueSize(key: number): number | null {
+  switch ((key >>> 28) & 0x07) {
+    case 1:
+    case 2:
+      return 1;
+    case 3:
+      return 2;
+    case 4:
+      return 4;
+    case 5:
+      return 8;
+    default:
+      return null;
+  }
+}
+
+function readCfgValue(view: DataView, offset: number, size: number): number {
+  if (size === 1) return view.getUint8(offset);
+  if (size === 2) return view.getUint16(offset, true);
+  if (size === 4) return view.getUint32(offset, true);
+  return Number(view.getBigUint64(offset, true));
+}
+
+function writeCfgValue(view: DataView, offset: number, size: number, value: number): void {
+  if (size === 1) view.setUint8(offset, value);
+  else if (size === 2) view.setUint16(offset, value, true);
+  else if (size === 4) view.setUint32(offset, value, true);
+  else view.setBigUint64(offset, BigInt(value), true);
+}
+
+/** UBX の 8bit Fletcher チェックサム。クラスからペイロード末尾までを畳み、CK_A を上位に詰めて返す */
+function ubxChecksum(frame: Uint8Array): number {
+  let checksumA = 0;
+  let checksumB = 0;
+  for (let index = 2; index < frame.length - 2; index += 1) {
+    checksumA = (checksumA + frame[index]) & 0xff;
+    checksumB = (checksumB + checksumA) & 0xff;
+  }
+  return (checksumA << 8) | checksumB;
+}
+
+/** クラス・ID・ペイロードから、チェックサムまで埋めた UBX フレームを組み立てる */
+function buildUbxFrame(messageClass: number, messageId: number, payload: Uint8Array): Uint8Array {
+  const frame = new Uint8Array(payload.length + UBX_FRAME_OVERHEAD);
+  frame.set([0xb5, 0x62, messageClass, messageId, payload.length & 0xff, payload.length >> 8]);
+  frame.set(payload, UBX_PAYLOAD_OFFSET);
+  const checksum = ubxChecksum(frame);
+  frame[frame.length - 2] = checksum >> 8;
+  frame[frame.length - 1] = checksum & 0xff;
+  return frame;
+}
+
+/** 指定キーの今の値を受信機へ尋ねる UBX-CFG-VALGET。1 回で複数のキーを尋ねられる */
+export function buildValgetRequest(keys: readonly number[]): Uint8Array {
+  // 先頭 4 バイトは version（0 = 照会）・層・position（0 = 先頭から返させる）
+  const payload = new Uint8Array(4 + keys.length * 4);
+  const view = new DataView(payload.buffer);
+  view.setUint8(1, CFG_VALGET_LAYER_RAM);
+  keys.forEach((key, index) => view.setUint32(4 + index * 4, key, true));
+  return buildUbxFrame(UBX_CLASS.CFG, UBX_ID.CFG_VALGET, payload);
+}
+
+/** 設定を受信機の RAM 層へ書く UBX-CFG-VALSET。電源を切れば元の設定へ戻る */
+export function buildValsetRequest(items: readonly CfgItem[]): Uint8Array {
+  const sizes = items.map(({ key }) => {
+    const size = cfgValueSize(key);
+    if (size === null) throw new Error(`値の大きさが分からない設定キーです: 0x${key.toString(16)}`);
+    return size;
+  });
+  // 先頭 4 バイトは version（0）・書く層・予約 2 バイト
+  const payload = new Uint8Array(4 + sizes.reduce((total, size) => total + 4 + size, 0));
+  const view = new DataView(payload.buffer);
+  view.setUint8(1, CFG_VALSET_LAYERS_RAM);
+  let offset = 4;
+  items.forEach(({ key, value }, index) => {
+    view.setUint32(offset, key, true);
+    writeCfgValue(view, offset + 4, sizes[index], value);
+    offset += 4 + sizes[index];
+  });
+  return buildUbxFrame(UBX_CLASS.CFG, UBX_ID.CFG_VALSET, payload);
 }
 
 /**
@@ -95,13 +178,7 @@ function payloadLengthIsConsistent(frame: Uint8Array): boolean {
 
 /** UBX の 8bit Fletcher チェックサムを検証する */
 export function ubxChecksumIsValid(frame: Uint8Array): boolean {
-  let checksumA = 0;
-  let checksumB = 0;
-  for (let index = 2; index < frame.length - 2; index += 1) {
-    checksumA = (checksumA + frame[index]) & 0xff;
-    checksumB = (checksumB + checksumA) & 0xff;
-  }
-  return frame[frame.length - 2] === checksumA && frame[frame.length - 1] === checksumB;
+  return ubxChecksum(frame) === ((frame[frame.length - 2] << 8) | frame[frame.length - 1]);
 }
 
 /** クラス/ID の組から辞書引きに使う電文種別名を決める。未知の組は 16 進表記にフォールバック */
@@ -116,13 +193,26 @@ export function ubxMessageType(messageClass: number, messageId: number): string 
   return `${toHexByte(messageClass)}/${toHexByte(messageId)}`;
 }
 
-/** UBX-CFG-VALGET の応答から、指定キーの 1 バイト値を取り出す。該当しなければ null */
-export function readValgetByte(frame: Uint8Array, expectedKey: number): number | null {
+/**
+ * UBX-CFG-VALGET の応答から、キーと値の組をすべて取り出す。応答でなければ null。
+ *
+ * 1 回の照会で複数のキーを尋ねられるため、値はキーが名乗る大きさに従って順に読み進める。
+ * 大きさの分からないキーに当たったら、そこから先は区切りが読めないので打ち切る。
+ */
+export function readValgetValues(frame: Uint8Array): Map<number, number> | null {
   const payloadLength = readUbxPayloadLength(frame);
-  if (frame[2] !== UBX_CLASS.CFG || frame[3] !== UBX_ID.CFG_VALGET || payloadLength < 9) return null;
+  if (frame[2] !== UBX_CLASS.CFG || frame[3] !== UBX_ID.CFG_VALGET || payloadLength < 4) return null;
   if (!payloadLengthIsConsistent(frame)) return null;
   const payload = new DataView(frame.buffer, frame.byteOffset + UBX_PAYLOAD_OFFSET, payloadLength);
-  return payload.getUint32(4, true) === expectedKey ? payload.getUint8(8) : null;
+  const values = new Map<number, number>();
+  for (let offset = 4; offset + 4 <= payloadLength;) {
+    const key = payload.getUint32(offset, true);
+    const size = cfgValueSize(key);
+    if (size === null || offset + 4 + size > payloadLength) break;
+    values.set(key, readCfgValue(payload, offset + 4, size));
+    offset += 4 + size;
+  }
+  return values;
 }
 
 /** ACK-ACK / ACK-NAK が「どのコマンドに対する応答か」を返す。ACK 系でなければ null */
@@ -182,9 +272,27 @@ function parseNavPvt(payload: DataView, update: Partial<Telemetry>): void {
   // validDate(bit0) と validTime(bit1) が両方立っている場合のみ日時を採用する
   const timeValid = payload.getUint8(11);
   if ((timeValid & 0x03) === 0x03) {
+    /*
+     * 秒の端数（nano）まで含めて 1/100 秒に丸める。測位レートを 1 Hz より上げると
+     * 1 秒の中に複数のエポックが入り、秒までの時刻では見分けられなくなるため。
+     * 桁は NMEA の時刻（hhmmss.ss）に揃え、同じエポックなら同じ文字列になるようにする。
+     *
+     * nano は負にもなり（例: 56 秒 - 0.000001 秒）、丸めると秒・分・日付まで繰り上がることがある。
+     * その繰り上がり・繰り下がりは Date に任せる。
+     */
+    const centiseconds = Math.round(payload.getInt32(16, true) / 1e7);
+    const at = new Date(Date.UTC(
+      payload.getUint16(4, true),
+      payload.getUint8(6) - 1,
+      payload.getUint8(7),
+      payload.getUint8(8),
+      payload.getUint8(9),
+      payload.getUint8(10),
+    ) + centiseconds * 10);
     const pad = (value: number) => String(value).padStart(2, '0');
-    update.dateUtc = `${payload.getUint16(4, true)}-${pad(payload.getUint8(6))}-${pad(payload.getUint8(7))}`;
-    update.timeUtc = `${pad(payload.getUint8(8))}:${pad(payload.getUint8(9))}:${pad(payload.getUint8(10))}`;
+    update.dateUtc = `${at.getUTCFullYear()}-${pad(at.getUTCMonth() + 1)}-${pad(at.getUTCDate())}`;
+    update.timeUtc = `${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())}:${pad(at.getUTCSeconds())}`
+      + `.${pad(at.getUTCMilliseconds() / 10)}`;
   }
 }
 

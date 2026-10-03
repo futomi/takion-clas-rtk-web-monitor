@@ -50,11 +50,18 @@ export function clearPositionFields(update: Partial<Telemetry>): void {
 }
 
 /**
- * 同一エポックの判定に使う、秒までの UTC 時刻。
- * GGA は小数秒（12:34:56.00）を持ち NAV-PVT は持たないため、秒で切り揃えて比べる。
+ * 同一エポックの判定に使う、UTC の 0 時からの経過（1/100 秒単位）。
+ *
+ * 測位レートを 1 Hz より上げると 1 秒の中に複数のエポックが入るため、秒までで比べると
+ * 別のエポックを同じものと取り違える。GGA は小数秒（12:34:56.20）を持ち、NAV-PVT も
+ * 同じ 1/100 秒の桁まで持たせている（{@link ./ubx}）ので、その桁で比べる。
+ * 小数秒の桁数が違っても、小数秒が無くても、同じ時刻なら同じ値になる。
  */
-export function positionEpoch(timeUtc: string | undefined): string | undefined {
-  return timeUtc === undefined || timeUtc.length < 8 ? undefined : timeUtc.slice(0, 8);
+export function positionEpoch(timeUtc: string | undefined): number | undefined {
+  const match = timeUtc === undefined ? null : /^(\d{2}):(\d{2}):(\d{2})(\.\d+)?$/.exec(timeUtc);
+  if (!match) return undefined;
+  const seconds = Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]) + Number(match[4] ?? 0);
+  return Math.round(seconds * 100);
 }
 
 /**
@@ -71,7 +78,7 @@ export function positionEpoch(timeUtc: string | undefined): string | undefined {
  */
 export function dropNmeaPositionCoveredByUbx(
   update: Partial<Telemetry>,
-  ubxEpoch: string | undefined,
+  ubxEpoch: number | undefined,
 ): Partial<Telemetry> {
   if (ubxEpoch === undefined || update.latitude === undefined) return update;
   if (positionEpoch(update.timeUtc) !== ubxEpoch) return update;

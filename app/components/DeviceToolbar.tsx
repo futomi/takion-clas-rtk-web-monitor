@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { BAUD_RATE_OPTIONS } from '../lib/constants';
+import { BAUD_RATE_OPTIONS, MEASUREMENT_RATE_OPTIONS } from '../lib/constants';
 import { formatHex } from '../lib/format';
 import type { ConnectionState } from '../lib/types';
 import type { SerialPortInfo } from '../lib/webSerial';
@@ -10,6 +10,9 @@ type DeviceToolbarProps = {
   portInfo: SerialPortInfo;
   baudRate: number;
   onBaudRateChange: (baudRate: number) => void;
+  /** 受信機に 1 秒あたり何回測位解を出させるか（Hz） */
+  measurementRate: number;
+  onMeasurementRateChange: (rateHz: number) => void;
   onConnect: () => void;
   onDisconnect: () => void;
 };
@@ -21,6 +24,8 @@ function DeviceToolbar({
   portInfo,
   baudRate,
   onBaudRateChange,
+  measurementRate,
+  onMeasurementRateChange,
   onConnect,
   onDisconnect,
 }: DeviceToolbarProps) {
@@ -42,18 +47,41 @@ function DeviceToolbar({
         <code>{formatHex(portInfo.usbVendorId)} / {formatHex(portInfo.usbProductId)}</code>
       </div>
 
-      <label className="baud-control">
-        <span>Baud</span>
-        <select
-          value={baudRate}
-          disabled={connection !== 'idle'}
-          onChange={(event) => onBaudRateChange(Number(event.target.value))}
+      <div className="device-settings">
+        <label className="device-select">
+          <span>Baud</span>
+          <select
+            value={baudRate}
+            disabled={connection !== 'idle'}
+            onChange={(event) => onBaudRateChange(Number(event.target.value))}
+          >
+            {BAUD_RATE_OPTIONS.map((rate) => (
+              <option value={rate} key={rate}>{rate.toLocaleString()} bps</option>
+            ))}
+          </select>
+        </label>
+
+        {/*
+          * ボーレートと違い、接続中も選び直せる。上げすぎて Fix しにくくなったら、
+          * 切断せずにその場で下げられるようにするため。
+          * 切断の後始末の間だけは、元へ戻した直後に書き換えてしまわないよう止める。
+          */}
+        <label
+          className="device-select measurement-rate"
+          title="受信機が 1 秒に何回測位するか。接続中だけ受信機の設定を書き換え、切断すると元の設定へ戻します"
         >
-          {BAUD_RATE_OPTIONS.map((rate) => (
-            <option value={rate} key={rate}>{rate.toLocaleString()} bps</option>
-          ))}
-        </select>
-      </label>
+          <span>測位レート</span>
+          <select
+            value={measurementRate}
+            disabled={connection === 'disconnecting'}
+            onChange={(event) => onMeasurementRateChange(Number(event.target.value))}
+          >
+            {MEASUREMENT_RATE_OPTIONS.map((rate) => (
+              <option value={rate} key={rate}>{rate} Hz</option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       {connection === 'connected' ? (
         <button type="button" className="connect-button disconnect-button" onClick={onDisconnect}>

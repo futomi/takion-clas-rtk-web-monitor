@@ -46,9 +46,10 @@ const TRACK_START_SOURCE_ID = 'track-start';
  *
  * 上限は「測位が途切れた後の 1 歩」が飛ぶように見えないための長さ。
  * 下限は、これを下回る間隔ならアニメーションを挟む意味が無いので即座に移す境目。
+ * 測位レートを 10 Hz（100 ms 間隔）まで上げても滑らかに追うよう、それより短くしてある。
  */
 const FOLLOW_EASE_MAX_MS = 450;
-const FOLLOW_EASE_MIN_MS = 120;
+const FOLLOW_EASE_MIN_MS = 50;
 
 /**
  * 軌跡の測位品質ごとの色。
@@ -122,6 +123,8 @@ export default function MapPanel({
   const centeredOnFirstFixRef = useRef(false);
   /** 前回、現在地へ追従した時刻。次の追従にかける長さを決めるのに使う */
   const lastFollowAtRef = useRef(0);
+  /** 前回、追従で向かった先。位置が変わっていなければ追従し直さないための控え */
+  const lastFollowTargetRef = useRef<{ longitude: number; latitude: number } | null>(null);
   /** 最後に描いた誤差円の中心と半径。同じ円を描き直さないための控え */
   const lastAccuracyRef = useRef<{ longitude: number; latitude: number; radius: number } | null>(null);
   /** 軌跡を増分で組み立てる。確定した区間は作り直さない */
@@ -271,10 +274,21 @@ export default function MapPanel({
     if (!centeredOnFirstFixRef.current) {
       map.jumpTo({ center: [longitude, latitude], zoom: 17 });
       centeredOnFirstFixRef.current = true;
+      lastFollowTargetRef.current = { longitude, latitude };
       return;
     }
 
-    if (following) {
+    /*
+     * 追従し直すのは位置が変わったときだけ。
+     *
+     * 1 エポックの電文（NAV-PVT・RMC・GST…）は別々に描き直しを起こすことがあり、
+     * 方位や誤差だけが変わってここへ来ることもある。そのたびに追従し直すと、
+     * 次のエポックまでかけるはずの動きが数十 ms で打ち切られ、地図がつかえて見える。
+     */
+    const lastTarget = lastFollowTargetRef.current;
+    const moved = lastTarget === null || lastTarget.longitude !== longitude || lastTarget.latitude !== latitude;
+    if (following && moved) {
+      lastFollowTargetRef.current = { longitude, latitude };
       const now = performance.now();
       const sinceLastFollow = now - lastFollowAtRef.current;
       lastFollowAtRef.current = now;
@@ -318,6 +332,9 @@ export default function MapPanel({
     setFollowing(true);
     const map = mapRef.current;
     if (map && latitude !== undefined && longitude !== undefined) {
+      // ここで向かう先を控えておく。控えが古いままだと、追従の再開で走る effect が
+      // 同じ場所への移動をもう一度指示し、この拡大の動きを途中で打ち切ってしまう
+      lastFollowTargetRef.current = { longitude, latitude };
       map.easeTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), 16), duration: 600, essential: true });
     }
   };
